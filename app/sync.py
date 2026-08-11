@@ -51,9 +51,12 @@ def sync_season(year: int) -> None:
                 SessionModel.scheduled_start.is_not(None),
                 SessionModel.scheduled_start >= oldest,
                 SessionModel.scheduled_start <= cutoff,
-                func.lower(func.coalesce(SessionModel.status, "scheduled")) != "completed",
+                func.lower(
+                    func.coalesce(SessionModel.status, "scheduled")
+                ) != "completed",
             )
-            .order_by(SessionModel.scheduled_start)
+            .order_by(SessionModel.scheduled_start.desc())
+            .limit(settings.collector_max_sessions_per_run)
         ).all()
 
         completed_race_rounds: set[int] = set()
@@ -66,24 +69,18 @@ def sync_season(year: int) -> None:
             except Exception:
                 db.rollback()
                 log.exception("Collection failed for %s R%s %s; will retry next run", year, round_number, session_row.type.value)
-
-        # Ensure standings exist for all race rounds whose race session is completed.
-        completed_rounds = db.scalars(
-            select(GrandPrix.round_number)
-            .join(SessionModel, SessionModel.grand_prix_id == GrandPrix.id)
-            .where(
-                GrandPrix.season_year == year,
-                SessionModel.type == SessionType.R,
-                func.lower(func.coalesce(SessionModel.status, "")) == "completed",
-            )
-            .order_by(GrandPrix.round_number)
-        ).all()
-        for round_number in completed_rounds:
+        
+        
+        for round_number in completed_race_rounds:
             try:
                 ingest_standings(db, year, int(round_number))
             except Exception:
                 db.rollback()
-                log.exception("Standings sync failed for %s R%s", year, round_number)
+                log.exception(
+                    "Standings sync failed for %s R%s",
+                    year,
+                    round_number,
+                )
 
 
 def sync_configured_seasons() -> None:
