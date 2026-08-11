@@ -1,0 +1,12 @@
+[Unit]
+Description=Periodically synchronize FastF1 data
+
+[Timer]
+# Run shortly after boot and then every 30 minutes.
+OnBootSec=45s
+OnUnitActiveSec=30min
+Persistent=true
+Unit=f1-collector.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,16 @@
+[Unit]
+Description=FastF1 -> RDS synchronization
+After=network-online.target f1-api.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ec2-user
+Group=ec2-user
+WorkingDirectory=/opt/f1-api
+EnvironmentFile=/opt/f1-api/.env
+ExecStart=/opt/f1-api/.venv/bin/python -m app.sync
+Nice=5
+
+[Install]
+WantedBy=multi-user.target

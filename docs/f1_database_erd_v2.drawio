@@ -1,0 +1,220 @@
+<mxfile host="app.diagrams.net" agent="ChatGPT">
+  <diagram id="f1-erd" name="F1 Database ERD">
+    <mxGraphModel dx="3200" dy="2400" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="3000" pageHeight="1900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=8;fontSize=12;strokeWidth=1.5;fillColor=#dae8fc;strokeColor=#666666;" value="&lt;b&gt;seasons 시즌&lt;/b&gt;&lt;hr&gt;PK year SMALLINT&lt;br&gt;total_rounds SMALLINT&lt;br&gt;start_date DATE&lt;br&gt;end_date DATE&lt;br&gt;regulations_era VARCHAR" vertex="1">
+          <mxGeometry height="132" width="220" x="40" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="iK_Wmfx6dUCfE2Ll80hF-48" edge="1" parent="1" source="3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="4" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="3" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=8;fontSize=12;strokeWidth=1.5;fillColor=#d5e8d4;strokeColor=#666666;" value="&lt;b&gt;drivers 전체 드라이버&lt;/b&gt;&lt;hr&gt;PK id BIGINT AUTO_INCREMENT&lt;br&gt;driver_ref VARCHAR UNIQUE&lt;br&gt;permanent_number SMALLINT&lt;br&gt;abbreviation VARCHAR(3)&lt;br&gt;full_name VARCHAR&lt;br&gt;nationality VARCHAR (legacy)&lt;br&gt;FK nationality_code -&amp;gt; countries.code&lt;br&gt;date_of_birth DATE" vertex="1">
+          <mxGeometry height="205" width="240" x="40" y="280" as="geometry" />
+        </mxCell>
+        <mxCell id="4" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=8;fontSize=12;strokeWidth=1.5;fillColor=#d5e8d4;strokeColor=#666666;" value="&lt;b&gt;constructors 전체 팀&lt;/b&gt;&lt;hr&gt;PK id BIGINT AUTO_INCREMENT&lt;br&gt;constructor_ref VARCHAR UNIQUE&lt;br&gt;name VARCHAR&lt;br&gt;full_name VARCHAR&lt;br&gt;nationality VARCHAR (legacy)&lt;br&gt;FK nationality_code -&amp;gt; countries.code" vertex="1">
+          <mxGeometry height="165" width="240" x="50" y="610" as="geometry" />
+        </mxCell>
+        <mxCell id="5" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=8;fontSize=12;strokeWidth=1.5;fillColor=#d5e8d4;strokeColor=#666666;" value="&lt;b&gt;circuits 서킷&lt;/b&gt;&lt;hr&gt;PK id BIGINT AUTO_INCREMENT&lt;br&gt;circuit_ref VARCHAR UNIQUE&lt;br&gt;name VARCHAR&lt;br&gt;name_ko VARCHAR&lt;br&gt;city VARCHAR&lt;br&gt;country VARCHAR (legacy)&lt;br&gt;FK country_code -&amp;gt; countries.code&lt;br&gt;latitude NUMERIC&lt;br&gt;longitude NUMERIC&lt;br&gt;length_meters INTEGER (legacy fallback)&lt;br&gt;timezone VARCHAR&lt;br&gt;opening_year SMALLINT" vertex="1">
+          <mxGeometry height="280" width="240" x="40" y="820" as="geometry" />
+        </mxCell>
+        <mxCell id="6" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=8;fontSize=12;strokeWidth=1.5;fillColor=#fff2cc;strokeColor=#666666;" value="&lt;b&gt;season_driver_entries 시즌 드라이버&lt;/b&gt;&lt;hr&gt;PK id BIGINT AUTO_INCREMENT&lt;br&gt;FK season_year -&amp;gt; seasons.year&lt;br&gt;FK driver_id -&amp;gt; drivers.id&lt;br&gt;FK constructor_id -&amp;gt; constructors.id&lt;br&gt;color VARCHAR (legacy)&lt;br&gt;car_number SMALLINT&lt;br&gt;start_round SMALLINT&lt;br&gt;end_round SMALLINT&lt;br&gt;is_primary_driver BOOLEAN&lt;br&gt;FK portrait_image_id -&amp;gt; media_assets.id" vertex="1">
+          <mxGeometry height="225" width="270" x="430" y="170" as="geometry" />
+        </mxCell>
+        <mxCell id="7" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=8;fontSize=12;strokeWidth=1.5;fillColor=#fff2cc;strokeColor=#666666;" value="&lt;b&gt;season_constructor_entries 시즌 컨스트럭터&lt;/b&gt;&lt;hr&gt;PK id BIGINT AUTO_INCREMENT&lt;br&gt;FK season_year -&amp;gt; seasons.year&lt;br&gt;FK constructor_id -&amp;gt; constructors.id&lt;br&gt;entry_name VARCHAR&lt;br&gt;engine_name VARCHAR&lt;br&gt;color VARCHAR&lt;br&gt;FK logo_image_id -&amp;gt; media_assets.id" vertex="1">
+          <mxGeometry height="170" width="270" x="370" y="500" as="geometry" />
+        </mxCell>
+        <mxCell id="8" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=8;fontSize=12;strokeWidth=1.5;fillColor=#f8cecc;strokeColor=#666666;" value="&lt;b&gt;grand_prix 그랑프리&lt;/b&gt;&lt;hr&gt;PK id BIGINT AUTO_INCREMENT&lt;br&gt;FK season_year -&amp;gt; seasons.year&lt;br&gt;FK circuit_id -&amp;gt; circuits.id&lt;br&gt;FK circuit_layout_id -&amp;gt; circuit_layouts.id&lt;br&gt;FK country_code -&amp;gt; countries.code&lt;br&gt;round_number SMALLINT&lt;br&gt;official_name VARCHAR&lt;br&gt;display_name VARCHAR&lt;br&gt;display_name_ko VARCHAR&lt;br&gt;event_format VARCHAR&lt;br&gt;weekend_start_date DATE&lt;br&gt;weekend_end_date DATE&lt;br&gt;scheduled_laps SMALLINT&lt;br&gt;scheduled_race_distance_meters INTEGER&lt;br&gt;FK winning_driver_id -&amp;gt; drivers.id&lt;br&gt;FK winning_constructor_id -&amp;gt; constructors.id&lt;br&gt;status VARCHAR" vertex="1">
+          <mxGeometry height="365" width="290" x="340" y="800" as="geometry" />
+        </mxCell>
+        <mxCell id="9" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=8;fontSize=12;strokeWidth=1.5;fillColor=#e1d5e7;strokeColor=#666666;" value="&lt;b&gt;driver_standings 드버순위&lt;/b&gt;&lt;hr&gt;PK id BIGSERIAL&lt;br&gt;FK season_year -&amp;gt; seasons.year&lt;br&gt;after_round SMALLINT&lt;br&gt;FK driver_id -&amp;gt; drivers.id&lt;br&gt;FK constructor_id -&amp;gt; constructors.id&lt;br&gt;position SMALLINT&lt;br&gt;points NUMERIC&lt;br&gt;wins SMALLINT&lt;br&gt;podiums SMALLINT" vertex="1">
+          <mxGeometry height="204" width="280" x="890" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="10" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=8;fontSize=12;strokeWidth=1.5;fillColor=#e1d5e7;strokeColor=#666666;" value="&lt;b&gt;constructor_standings 컨스 순위&lt;/b&gt;&lt;hr&gt;PK id BIGSERIAL&lt;br&gt;FK season_year -&amp;gt; seasons.year&lt;br&gt;after_round SMALLINT&lt;br&gt;FK constructor_id -&amp;gt; constructors.id&lt;br&gt;position SMALLINT&lt;br&gt;points NUMERIC&lt;br&gt;wins SMALLINT&lt;br&gt;podiums SMALLINT" vertex="1">
+          <mxGeometry height="186" width="280" x="720" y="424" as="geometry" />
+        </mxCell>
+        <mxCell id="11" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=8;fontSize=12;strokeWidth=1.5;fillColor=#f8cecc;strokeColor=#666666;" value="&lt;b&gt;sessions 세션&lt;/b&gt;&lt;hr&gt;PK id BIGSERIAL&lt;br&gt;FK grand_prix_id -&amp;gt; grand_prix.id&lt;br&gt;type session_type&lt;br&gt;name VARCHAR&lt;br&gt;scheduled_start TIMESTAMPTZ&lt;br&gt;scheduled_end TIMESTAMPTZ&lt;br&gt;actual_start TIMESTAMPTZ&lt;br&gt;actual_end TIMESTAMPTZ&lt;br&gt;status VARCHAR&lt;br&gt;total_laps SMALLINT" vertex="1">
+          <mxGeometry height="222" width="300" x="710" y="730" as="geometry" />
+        </mxCell>
+        <mxCell id="12" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=8;fontSize=12;strokeWidth=1.5;fillColor=#ffe6cc;strokeColor=#666666;" value="&lt;b&gt;session_entries 세션참가드버&lt;/b&gt;&lt;hr&gt;PK id BIGSERIAL&lt;br&gt;FK session_id -&amp;gt; sessions.id&lt;br&gt;FK driver_id -&amp;gt; drivers.id&lt;br&gt;FK constructor_id -&amp;gt; constructors.id&lt;br&gt;racing_number SMALLINT&lt;br&gt;abbreviation VARCHAR(3)&lt;br&gt;grid_position SMALLINT" vertex="1">
+          <mxGeometry height="168" width="290" x="1090" y="592" as="geometry" />
+        </mxCell>
+        <mxCell id="13" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=8;fontSize=12;strokeWidth=1.5;fillColor=#ffe6cc;strokeColor=#666666;" value="&lt;b&gt;session_results&lt;/b&gt;&amp;nbsp;드버별 세션결과&lt;hr&gt;PK id BIGSERIAL&lt;br&gt;FK session_entry_id -&amp;gt; session_entries.id&lt;br&gt;classified_position SMALLINT&lt;br&gt;displayed_position VARCHAR&lt;br&gt;grid_position SMALLINT&lt;br&gt;finishing_position SMALLINT&lt;br&gt;points NUMERIC&lt;br&gt;status VARCHAR&lt;br&gt;laps_completed SMALLINT&lt;br&gt;total_time_us BIGINT&lt;br&gt;gap_to_winner_us BIGINT&lt;br&gt;fastest_lap_number SMALLINT&lt;div&gt;fastest_lap_time BIGINT&lt;br&gt;q1_time_us BIGINT&lt;br&gt;q2_time_us BIGINT&lt;br&gt;q3_time_us BIGINT&lt;/div&gt;" vertex="1">
+          <mxGeometry height="312" width="330" x="1280" y="94" as="geometry" />
+        </mxCell>
+        <mxCell id="14" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=8;fontSize=12;strokeWidth=1.5;fillColor=#ffe6cc;strokeColor=#666666;" value="&lt;b&gt;driver_of_the_day&lt;/b&gt;&lt;hr/&gt;PK/FK grand_prix_id -&amp;gt; grand_prix.id&lt;br/&gt;FK driver_id -&amp;gt; drivers.id&lt;br/&gt;vote_percentage NUMERIC&lt;br/&gt;source VARCHAR&lt;br/&gt;source_url TEXT&lt;br/&gt;announced_at TIMESTAMPTZ" vertex="1">
+          <mxGeometry height="150" width="290" x="510" y="1180" as="geometry" />
+        </mxCell>
+        <mxCell id="15" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=8;fontSize=12;strokeWidth=1.5;fillColor=#d5e8d4;strokeColor=#666666;" value="&lt;b&gt;laps&lt;/b&gt;&lt;hr&gt;PK id BIGINT AUTO_INCREMENT&lt;br&gt;FK session_entry_id -&amp;gt; session_entries.id&lt;br&gt;lap_number SMALLINT&lt;br&gt;position SMALLINT&lt;br&gt;lap_time_us BIGINT&lt;br&gt;sector1_time_us BIGINT&lt;br&gt;sector2_time_us BIGINT&lt;br&gt;sector3_time_us BIGINT&lt;br&gt;gap_to_leader_us BIGINT&lt;br&gt;interval_to_ahead_us BIGINT&lt;br&gt;compound VARCHAR&lt;br&gt;tyre_life_laps SMALLINT&lt;br&gt;stint_number SMALLINT&lt;br&gt;pit_in_time_us BIGINT&lt;br&gt;pit_out_time_us BIGINT&lt;br&gt;track_status VARCHAR&lt;br&gt;speed_i1_kph NUMERIC&lt;br&gt;speed_i2_kph NUMERIC&lt;br&gt;speed_fl_kph NUMERIC&lt;br&gt;speed_st_kph NUMERIC" vertex="1">
+          <mxGeometry height="405" width="350" x="1470" y="580" as="geometry" />
+        </mxCell>
+        <mxCell id="16" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=8;fontSize=12;strokeWidth=1.5;fillColor=#d5e8d4;strokeColor=#666666;" value="&lt;b&gt;tyre_stints&lt;/b&gt;&lt;hr/&gt;PK id BIGSERIAL&lt;br/&gt;FK session_entry_id -&amp;gt; session_entries.id&lt;br/&gt;stint_number SMALLINT&lt;br/&gt;compound VARCHAR&lt;br/&gt;start_lap SMALLINT&lt;br/&gt;end_lap SMALLINT&lt;br/&gt;total_laps GENERATED&lt;br/&gt;starting_tyre_life SMALLINT&lt;br/&gt;ending_tyre_life SMALLINT&lt;br/&gt;fresh_tyre BOOLEAN" vertex="1">
+          <mxGeometry height="222" width="300" x="1910" y="440" as="geometry" />
+        </mxCell>
+        <mxCell id="17" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=8;fontSize=12;strokeWidth=1.5;fillColor=#d5e8d4;strokeColor=#666666;" value="&lt;b&gt;pit_stops&lt;/b&gt;&lt;hr/&gt;PK id BIGSERIAL&lt;br/&gt;FK session_entry_id -&amp;gt; session_entries.id&lt;br/&gt;stop_number SMALLINT&lt;br/&gt;lap_number SMALLINT&lt;br/&gt;pit_entry_time_us BIGINT&lt;br/&gt;pit_exit_time_us BIGINT&lt;br/&gt;pit_lane_duration_us BIGINT&lt;br/&gt;stationary_duration_us BIGINT&lt;br/&gt;compound_before VARCHAR&lt;br/&gt;compound_after VARCHAR" vertex="1">
+          <mxGeometry height="222" width="300" x="1760" y="938" as="geometry" />
+        </mxCell>
+        <mxCell id="18" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=8;fontSize=12;strokeWidth=1.5;fillColor=#dae8fc;strokeColor=#666666;" value="&lt;b&gt;weather_samples 날씨&lt;/b&gt;&lt;hr&gt;PK id BIGSERIAL&lt;br&gt;FK session_id -&amp;gt; sessions.id&lt;br&gt;sample_time TIMESTAMPTZ&lt;br&gt;session_time_us BIGINT&lt;br&gt;air_temperature_c NUMERIC&lt;br&gt;track_temperature_c NUMERIC&lt;br&gt;humidity_percent NUMERIC&lt;br&gt;pressure_hpa NUMERIC&lt;br&gt;wind_speed_mps NUMERIC&lt;br&gt;wind_direction_deg SMALLINT&lt;br&gt;rainfall BOOLEAN" vertex="1">
+          <mxGeometry height="240" width="320" x="810" y="1135" as="geometry" />
+        </mxCell>
+        <mxCell id="19" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=8;fontSize=12;strokeWidth=1.5;fillColor=#f8cecc;strokeColor=#666666;" value="&lt;b&gt;race_control_events 세카+노티드 등&lt;/b&gt;&lt;hr&gt;PK id BIGSERIAL&lt;br&gt;FK session_id -&amp;gt; sessions.id&lt;br&gt;FK lap_number SMALLINT&lt;br&gt;event_time TIMESTAMPTZ&lt;br&gt;session_time_us BIGINT&lt;br&gt;category VARCHAR&lt;br&gt;event_type VARCHAR&lt;br&gt;flag VARCHAR&lt;br&gt;status VARCHAR&lt;br&gt;message TEXT" vertex="1">
+          <mxGeometry height="222" width="330" x="1270" y="1160" as="geometry" />
+        </mxCell>
+        <mxCell id="20" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=8;fontSize=12;strokeWidth=1.5;fillColor=#f8cecc;strokeColor=#666666;" value="&lt;b&gt;race_periods 세이프티카등&lt;/b&gt;&lt;hr&gt;PK id BIGSERIAL&lt;br&gt;FK session_id -&amp;gt; sessions.id&lt;br&gt;period_type VARCHAR&lt;br&gt;start_time_us BIGINT&lt;br&gt;end_time_us BIGINT&lt;br&gt;start_lap SMALLINT&lt;br&gt;end_lap SMALLINT&lt;br&gt;FK start_event_id -&amp;gt; race_control_events.id&lt;br&gt;FK end_event_id -&amp;gt; race_control_events.id" vertex="1">
+          <mxGeometry height="204" width="300" x="1100" y="900" as="geometry" />
+        </mxCell>
+        <mxCell id="21" edge="1" parent="1" source="2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#666666;" target="6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="22" edge="1" parent="1" source="3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#666666;" target="6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="23" edge="1" parent="1" source="7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#666666;exitX=0.75;exitY=0;exitDx=0;exitDy=0;" target="6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="24" edge="1" parent="1" source="2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#666666;" target="7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="25" edge="1" parent="1" source="4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#666666;" target="7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="26" edge="1" parent="1" source="2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#666666;" target="8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="27" edge="1" parent="1" source="5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#666666;" target="8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="28" edge="1" parent="1" source="3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#666666;" target="8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="29" edge="1" parent="1" source="4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#666666;" target="8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="30" edge="1" parent="1" source="2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#666666;" target="9">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="31" edge="1" parent="1" source="6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#666666;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" target="9">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="32" edge="1" parent="1" source="4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#666666;" target="9">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="33" edge="1" parent="1" source="2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#666666;" target="10">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="34" edge="1" parent="1" source="7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#666666;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" target="10">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="35" edge="1" parent="1" source="8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#666666;" target="11">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="36" edge="1" parent="1" source="11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#666666;" target="12">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="37" edge="1" parent="1" source="6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#666666;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" target="12">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="38" edge="1" parent="1" source="4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#666666;" target="12">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="39" edge="1" parent="1" source="12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#666666;" target="13">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="40" edge="1" parent="1" source="8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#666666;" target="14">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="41" edge="1" parent="1" source="3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#666666;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" target="14">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="42" edge="1" parent="1" source="12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#666666;" target="15">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="43" edge="1" parent="1" source="12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#666666;" target="16">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="44" edge="1" parent="1" source="12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#666666;" target="17">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="45" edge="1" parent="1" source="11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#666666;" target="18">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="46" edge="1" parent="1" source="11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#666666;" target="19">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="47" edge="1" parent="1" source="11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#666666;" target="20">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="48" edge="1" parent="1" source="19" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#666666;" target="20">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="iK_Wmfx6dUCfE2Ll80hF-49" edge="1" parent="1" source="15" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#666666;exitX=0.314;exitY=1.002;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="19">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1650" y="1050" as="sourcePoint" />
+            <mxPoint x="2075" y="1369" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="v2_media_assets" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=8;fontSize=12;strokeWidth=1.5;fillColor=#d5e8d4;strokeColor=#666666;" value="&lt;b&gt;media_assets 이미지/파일 메타데이터&lt;/b&gt;&lt;hr&gt;PK id BIGINT AUTO_INCREMENT&lt;br&gt;asset_type VARCHAR&lt;br&gt;storage_key VARCHAR UNIQUE&lt;br&gt;public_url VARCHAR&lt;br&gt;mime_type VARCHAR&lt;br&gt;width INTEGER&lt;br&gt;height INTEGER&lt;br&gt;alt_text VARCHAR&lt;br&gt;source_url TEXT&lt;br&gt;attribution VARCHAR&lt;br&gt;license_note VARCHAR&lt;br&gt;created_at DATETIME" vertex="1">
+          <mxGeometry height="285" width="360" x="2230" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="v2_countries" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=8;fontSize=12;strokeWidth=1.5;fillColor=#d5e8d4;strokeColor=#666666;" value="&lt;b&gt;countries 국가&lt;/b&gt;&lt;hr&gt;PK code VARCHAR(2)&lt;br&gt;name_en VARCHAR&lt;br&gt;name_ko VARCHAR&lt;br&gt;demonym_en VARCHAR&lt;br&gt;FK flag_image_id -&amp;gt; media_assets.id" vertex="1">
+          <mxGeometry height="160" width="320" x="2230" y="360" as="geometry" />
+        </mxCell>
+        <mxCell id="v2_circuit_layouts" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=8;fontSize=12;strokeWidth=1.5;fillColor=#d5e8d4;strokeColor=#666666;" value="&lt;b&gt;circuit_layouts 서킷 레이아웃&lt;/b&gt;&lt;hr&gt;PK id BIGINT AUTO_INCREMENT&lt;br&gt;FK circuit_id -&amp;gt; circuits.id&lt;br&gt;layout_ref VARCHAR UNIQUE&lt;br&gt;layout_name VARCHAR&lt;br&gt;valid_from_year SMALLINT&lt;br&gt;valid_to_year SMALLINT&lt;br&gt;length_meters INTEGER&lt;br&gt;corners SMALLINT&lt;br&gt;FK map_image_id -&amp;gt; media_assets.id&lt;br&gt;is_current BOOLEAN" vertex="1">
+          <mxGeometry height="260" width="360" x="2230" y="570" as="geometry" />
+        </mxCell>
+        <mxCell id="v2_gp_tyres" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=8;fontSize=12;strokeWidth=1.5;fillColor=#d5e8d4;strokeColor=#666666;" value="&lt;b&gt;grand_prix_tyre_allocations GP 타이어 배정&lt;/b&gt;&lt;hr&gt;PK id BIGINT AUTO_INCREMENT&lt;br&gt;FK grand_prix_id -&amp;gt; grand_prix.id&lt;br&gt;compound_code VARCHAR&lt;br&gt;weekend_role VARCHAR&lt;br&gt;sets_per_driver SMALLINT&lt;br&gt;source VARCHAR&lt;br&gt;source_url TEXT" vertex="1">
+          <mxGeometry height="205" width="360" x="520" y="1510" as="geometry" />
+        </mxCell>
+        <mxCell id="v2_circuit_records" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=8;fontSize=12;strokeWidth=1.5;fillColor=#d5e8d4;strokeColor=#666666;" value="&lt;b&gt;circuit_records 서킷 기록&lt;/b&gt;&lt;hr&gt;PK id BIGINT AUTO_INCREMENT&lt;br&gt;FK circuit_layout_id -&amp;gt; circuit_layouts.id&lt;br&gt;record_type VARCHAR&lt;br&gt;FK driver_id -&amp;gt; drivers.id&lt;br&gt;FK constructor_id -&amp;gt; constructors.id&lt;br&gt;FK grand_prix_id -&amp;gt; grand_prix.id&lt;br&gt;record_year SMALLINT&lt;br&gt;lap_time_us BIGINT&lt;br&gt;source VARCHAR&lt;br&gt;source_url TEXT&lt;br&gt;&lt;i&gt;LAST_WIN은 grand_prix에서 계산&lt;/i&gt;" vertex="1">
+          <mxGeometry height="275" width="370" x="2230" y="900" as="geometry" />
+        </mxCell>
+        <mxCell id="e21" edge="1" parent="1" source="v2_countries" target="v2_media_assets" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#82b366;" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e22" edge="1" parent="1" source="3" target="v2_countries" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#82b366;" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e23" edge="1" parent="1" source="4" target="v2_countries" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#82b366;" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e24" edge="1" parent="1" source="5" target="v2_countries" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#82b366;" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e25" edge="1" parent="1" source="v2_circuit_layouts" target="5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#82b366;" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e26" edge="1" parent="1" source="v2_circuit_layouts" target="v2_media_assets" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#82b366;" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e27" edge="1" parent="1" source="6" target="v2_media_assets" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#82b366;" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e28" edge="1" parent="1" source="7" target="v2_media_assets" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#82b366;" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e29" edge="1" parent="1" source="8" target="v2_circuit_layouts" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#82b366;" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e30" edge="1" parent="1" source="8" target="v2_countries" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#82b366;" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e31" edge="1" parent="1" source="v2_gp_tyres" target="8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#82b366;" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e32" edge="1" parent="1" source="v2_circuit_records" target="v2_circuit_layouts" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#82b366;" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e33" edge="1" parent="1" source="v2_circuit_records" target="3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#82b366;" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e34" edge="1" parent="1" source="v2_circuit_records" target="4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#82b366;" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e35" edge="1" parent="1" source="v2_circuit_records" target="8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#82b366;" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

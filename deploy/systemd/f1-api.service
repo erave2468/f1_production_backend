@@ -1,0 +1,27 @@
+[Unit]
+Description=F1 FastAPI API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ec2-user
+Group=ec2-user
+WorkingDirectory=/opt/f1-api
+EnvironmentFile=/opt/f1-api/.env
+
+# Runs once per service start, before Gunicorn workers are created.
+ExecStartPre=/opt/f1-api/.venv/bin/python -m app.bootstrap
+ExecStart=/opt/f1-api/.venv/bin/gunicorn app.main:app --config /opt/f1-api/gunicorn.conf.py
+
+Restart=always
+RestartSec=5
+TimeoutStartSec=180
+KillSignal=SIGQUIT
+
+# Basic hardening. The API itself only needs the project and network.
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

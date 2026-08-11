@@ -1,0 +1,29 @@
+# 환경 변수 / 비밀정보
+.env
+.env.*
+!.env.example
+
+# AWS private key
+*.pem
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# Cache
+.cache/
+fastf1-cache/
+.fastf1/
+.pytest_cache/
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Windows
+Thumbs.db
