@@ -37,7 +37,8 @@ class Settings(BaseSettings):
     collect_seasons: str = "2026"
     collect_after_start_minutes: int = 240
     collector_lookback_days: int = 365
-
+    collector_max_sessions_per_run: int = 1
+    
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
