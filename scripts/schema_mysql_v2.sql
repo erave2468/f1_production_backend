@@ -412,3 +412,10 @@ CREATE TABLE tyre_stints (
 	CONSTRAINT uq_entry_stint UNIQUE (session_entry_id, stint_number), 
 	FOREIGN KEY(session_entry_id) REFERENCES session_entries (id) ON DELETE CASCADE
 );
+
+CREATE TABLE grand_prix_sync_state (
+    grand_prix_id BIGINT NOT NULL PRIMARY KEY,
+    pre_event_synced_at DATETIME NULL,
+    last_live_synced_at DATETIME NULL,
+    post_event_synced_at DATETIME NULL
+);

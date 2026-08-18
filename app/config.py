@@ -36,8 +36,12 @@ class Settings(BaseSettings):
     # Startup/collector behavior.
     collect_seasons: str = "2026"
     collect_after_start_minutes: int = 240
-    collector_lookback_days: int = 30
+    collector_lookback_days: int = 14
     collector_max_sessions_per_run: int = 1
+
+    sync_pre_event_hours: int = 24
+    sync_live_interval_minutes: int = 60
+    sync_post_event_hours: int = 24
 
     model_config = SettingsConfigDict(
         env_file=".env",
