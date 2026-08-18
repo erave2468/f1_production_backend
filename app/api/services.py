@@ -270,7 +270,7 @@ def get_last_grand_prix(db: Session, season: int | None) -> GrandPrixListItem:
         raise _not_found(f"No last Grand Prix found for season {season}")
     return next(item for item in list_grand_prix(db, season) if item.grandprix_id == last_id)
 
-def get_next_last_current_grand_prix(db: Session, season: int | None) -> list[GrandPrixListItem]:
+def get_next_last_current_grand_prix(db: Session, season: int | None) -> dict[str, GrandPrixListItem | None]:
     season = resolve_season(db, season)
     next_gp = None
     last_gp = None
@@ -323,15 +323,11 @@ def get_next_last_current_grand_prix(db: Session, season: int | None) -> list[Gr
             ),
         )
 
-    output: list[GrandPrixListItem] = []
-    if next_gp:
-        output.append(next_gp)
-    if last_gp:
-        output.append(last_gp)
-    if current_gp:
-        output.append(current_gp)
-
-    return output
+    return {
+        "next": next_gp,
+        "last": last_gp,
+        "current": current_gp,
+    }
 
 
 def get_grand_prix(db: Session, grand_prix_id: int) -> GrandPrixResponse:
