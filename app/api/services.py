@@ -327,14 +327,56 @@ def get_grand_prix_overview(db: Session, grand_prix_id: int) -> GrandPrixOvervie
         total_km = one_lap_km * lap_count
     else:
         total_km = None
-
+    
     country = db.get(Country, circuit.country_code) if circuit.country_code else None
+
+    weather_items: list[WeatherItem] = []
+
+    for session_row in sessions:
+        # 기존과 동일하게 세션 평균 기온
+        temperature = db.scalar(
+            select(
+                func.avg(
+                    WeatherSample.air_temperature_c
+                )
+            )
+            .where(
+                WeatherSample.session_id == session_row.id
+            )
+        )
+
+        # 실제 시작 시간이 있으면 actual_start를 우선 사용
+        target_time = (
+            session_row.actual_start
+            or session_row.scheduled_start
+        )
+
+        rainfall = None
+
+        if target_time is not None:
+            rainfall = db.scalar(
+                select(WeatherSample.rainfall)
+                .where(
+                    WeatherSample.session_id == session_row.id,
+                    WeatherSample.sample_time.is_not(None),
+                    WeatherSample.sample_time <= target_time,
+                )
+                .order_by(
+                    WeatherSample.sample_time.desc()
+                )
+                .limit(1)
+            )
+
+        weather_items.append(
+            WeatherItem(
+                session_code=session_row.type,
+                temperature=_float(temperature),
+                rainfall=rainfall,
+            )
+        )
     return GrandPrixOverviewResponse(
         schedule=[ScheduleItem(session_code=s.type, time=s.scheduled_start) for s in sessions],
-        weather=[
-            WeatherItem(session_code=session_type, temperature=_float(temp))
-            for session_type, temp in weather_rows
-        ],
+        weather=weather_items,
         tire=[
             TireOverviewItem(
                 tire_code=TYRE_ROLE_CODE.get(t.weekend_role.upper(), 0),

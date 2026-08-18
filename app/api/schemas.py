@@ -39,6 +39,7 @@ class ScheduleItem(BaseModel):
 class WeatherItem(BaseModel):
     session_code: SessionType
     temperature: float | None
+    rainfall: bool | None = None
 
 
 class TireOverviewItem(BaseModel):
