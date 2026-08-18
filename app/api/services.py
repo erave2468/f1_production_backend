@@ -270,7 +270,7 @@ def get_last_grand_prix(db: Session, season: int | None) -> GrandPrixListItem:
         raise _not_found(f"No last Grand Prix found for season {season}")
     return next(item for item in list_grand_prix(db, season) if item.grandprix_id == last_id)
 
-def get_next_last_current_grand_prix(db: Session, season: int | None) -> dict[str, GrandPrixListItem | None]:
+def get_next_last_current_grand_prix(db: Session, season: int | None):
     season = resolve_season(db, season)
     next_gp = None
     last_gp = None
@@ -278,12 +278,14 @@ def get_next_last_current_grand_prix(db: Session, season: int | None) -> dict[st
 
     try:
         next_gp = get_next_grand_prix(db, season)
+        next = next_gp.grandprix_id
     except HTTPException as e:
         if e.status_code != status.HTTP_404_NOT_FOUND:
             raise
 
     try:
         last_gp = get_last_grand_prix(db, season)
+        last = last_gp.grandprix_id
     except HTTPException as e:
         if e.status_code != status.HTTP_404_NOT_FOUND:
             raise
@@ -322,11 +324,12 @@ def get_next_last_current_grand_prix(db: Session, season: int | None) -> dict[st
                 .limit(1)
             ),
         )
+        current = current_gp.grandprix_id
 
     return {
-        "next": next_gp,
-        "last": last_gp,
-        "current": current_gp,
+        "next": next,
+        "last": last,
+        "current": current,
     }
 
 
