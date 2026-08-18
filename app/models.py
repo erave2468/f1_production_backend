@@ -640,3 +640,25 @@ class CircuitRecord(Base):
     lap_time_us: Mapped[int | None] = mapped_column(BigInteger)
     source: Mapped[str | None] = mapped_column(String(120))
     source_url: Mapped[str | None] = mapped_column(Text)
+
+class GrandPrixSyncState(Base):
+    __tablename__ = "grand_prix_sync_state"
+
+    grand_prix_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("grand_prix.id", ondelete="CASCADE"),
+        primary_key=True,
+        autoincrement=False,
+    )
+
+    pre_event_synced_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=False)
+    )
+
+    last_live_synced_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=False)
+    )
+
+    post_event_synced_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=False)
+    )
