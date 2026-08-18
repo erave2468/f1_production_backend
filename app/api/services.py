@@ -270,6 +270,69 @@ def get_last_grand_prix(db: Session, season: int | None) -> GrandPrixListItem:
         raise _not_found(f"No last Grand Prix found for season {season}")
     return next(item for item in list_grand_prix(db, season) if item.grandprix_id == last_id)
 
+def get_next_last_current_grand_prix(db: Session, season: int | None) -> list[GrandPrixListItem]:
+    season = resolve_season(db, season)
+    next_gp = None
+    last_gp = None
+    current_gp = None
+
+    try:
+        next_gp = get_next_grand_prix(db, season)
+    except HTTPException as e:
+        if e.status_code != status.HTTP_404_NOT_FOUND:
+            raise
+
+    try:
+        last_gp = get_last_grand_prix(db, season)
+    except HTTPException as e:
+        if e.status_code != status.HTTP_404_NOT_FOUND:
+            raise
+
+    today = datetime.now(UTC).date()
+    current_gp_row = db.scalar(
+        select(GrandPrix)
+        .where(
+            GrandPrix.season_year == season,
+            GrandPrix.weekend_start_date <= today,
+            GrandPrix.weekend_end_date >= today,
+        )
+        .limit(1)
+    )
+    if current_gp_row:
+        current_gp = GrandPrixListItem(
+            grandprix_id=current_gp_row.id,
+            is_current=True,
+            is_next=False,
+            name=current_gp_row.display_name_ko or current_gp_row.display_name,
+            round=current_gp_row.round_number,
+            nation_flag_image_id=_country_flag_id(db, current_gp_row.country_code),
+            first_driver_id=current_gp_row.winning_driver_id,
+            first_driver_image_id=_driver_portrait_id(
+                db,
+                current_gp_row.season_year,
+                current_gp_row.winning_driver_id,
+                current_gp_row.winning_constructor_id,
+            ),
+            date=db.scalar(
+                select(SessionModel.scheduled_start)
+                .where(
+                    SessionModel.grand_prix_id == current_gp_row.id,
+                    SessionModel.type == SessionType.R,
+                )
+                .limit(1)
+            ),
+        )
+
+    output: list[GrandPrixListItem] = []
+    if next_gp:
+        output.append(next_gp)
+    if last_gp:
+        output.append(last_gp)
+    if current_gp:
+        output.append(current_gp)
+
+    return output
+
 
 def get_grand_prix(db: Session, grand_prix_id: int) -> GrandPrixResponse:
     gp = _get_gp(db, grand_prix_id)
@@ -290,7 +353,6 @@ def get_grand_prix(db: Session, grand_prix_id: int) -> GrandPrixResponse:
         nation_flag_image_id=_country_flag_id(db, gp.country_code),
         is_sprint=bool(sprint_exists),
     )
-
 
 def get_grand_prix_overview(db: Session, grand_prix_id: int) -> GrandPrixOverviewResponse:
     gp = _get_gp(db, grand_prix_id)

@@ -42,10 +42,15 @@ def last_grand_prix(
 ) -> GrandPrixListItem:
     return services.get_last_grand_prix(db, season)'''
 
+@router.get("/recent", response_model=GrandPrixListResponse)
+def recent_grand_prix(
+    db: Db,
+    season: Annotated[int | None, Query(ge=1950, le=2100)] = None,
+) -> GrandPrixListResponse:
+    return GrandPrixListResponse(grandprix=services.get_next_last_current_grand_prix(db, season))
 @router.get("/{grand_prix_id}", response_model=GrandPrixResponse)
 def grand_prix(grand_prix_id: int, db: Db) -> GrandPrixResponse:
     return services.get_grand_prix(db, grand_prix_id)
-
 
 @router.get("/{grand_prix_id}/overview", response_model=GrandPrixOverviewResponse)
 def grand_prix_overview(grand_prix_id: int, db: Db) -> GrandPrixOverviewResponse:
