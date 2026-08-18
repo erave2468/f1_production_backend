@@ -270,68 +270,35 @@ def get_last_grand_prix(db: Session, season: int | None) -> GrandPrixListItem:
         raise _not_found(f"No last Grand Prix found for season {season}")
     return next(item for item in list_grand_prix(db, season) if item.grandprix_id == last_id)
 
-def get_next_last_current_grand_prix(db: Session, season: int | None):
+def get_next_last_current_grand_prix(
+    db: Session,
+    season: int | None,
+):
     season = resolve_season(db, season)
-    next_gp = None
-    last_gp = None
-    current_gp = None
 
-    try:
-        next_gp = get_next_grand_prix(db, season)
-        next = next_gp.grandprix_id
-    except HTTPException as e:
-        if e.status_code != status.HTTP_404_NOT_FOUND:
-            raise
-
-    try:
-        last_gp = get_last_grand_prix(db, season)
-        last = last_gp.grandprix_id
-    except HTTPException as e:
-        if e.status_code != status.HTTP_404_NOT_FOUND:
-            raise
+    next_id = _next_grand_prix_id(db, season)
+    last_id = _last_grand_prix_id(db, season)
 
     today = datetime.now(UTC).date()
-    current_gp_row = db.scalar(
-        select(GrandPrix)
+
+    current_id = db.scalar(
+        select(GrandPrix.id)
         .where(
             GrandPrix.season_year == season,
+            GrandPrix.weekend_start_date.is_not(None),
+            GrandPrix.weekend_end_date.is_not(None),
             GrandPrix.weekend_start_date <= today,
             GrandPrix.weekend_end_date >= today,
         )
+        .order_by(GrandPrix.round_number)
         .limit(1)
     )
-    if current_gp_row:
-        current_gp = GrandPrixListItem(
-            grandprix_id=current_gp_row.id,
-            is_current=True,
-            is_next=False,
-            name=current_gp_row.display_name_ko or current_gp_row.display_name,
-            round=current_gp_row.round_number,
-            nation_flag_image_id=_country_flag_id(db, current_gp_row.country_code),
-            first_driver_id=current_gp_row.winning_driver_id,
-            first_driver_image_id=_driver_portrait_id(
-                db,
-                current_gp_row.season_year,
-                current_gp_row.winning_driver_id,
-                current_gp_row.winning_constructor_id,
-            ),
-            date=db.scalar(
-                select(SessionModel.scheduled_start)
-                .where(
-                    SessionModel.grand_prix_id == current_gp_row.id,
-                    SessionModel.type == SessionType.R,
-                )
-                .limit(1)
-            ),
-        )
-        current = current_gp.grandprix_id
 
     return {
-        "next": next,
-        "last": last,
-        "current": current,
+        "next": next_id,
+        "last": last_id,
+        "current": current_id,
     }
-
 
 def get_grand_prix(db: Session, grand_prix_id: int) -> GrandPrixResponse:
     gp = _get_gp(db, grand_prix_id)
