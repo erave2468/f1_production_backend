@@ -43,6 +43,9 @@ class Settings(BaseSettings):
     sync_live_interval_minutes: int = 60
     sync_post_event_hours: int = 24
 
+    media_s3_bucket: str
+    media_s3_region: str = "ap-northeast-2"
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
