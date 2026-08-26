@@ -564,7 +564,7 @@ def _is_completed_status(status_text: str | None) -> bool:
         return False
 
     text = status_text.strip().lower()
-    return text == "finished" or text.startswith("+")
+    return text in {"finished", "lapped"} or text.startswith("+")
 
 def _non_finish_code(status_text: str | None) -> str | None:
     if not status_text or _is_completed_status(status_text):
