@@ -11,9 +11,11 @@ from sqlalchemy import select
 from app.db import SessionLocal
 from app.media_storage import upload_file
 from app.models import (
+    Constructor,
     Country,
     Driver,
     MediaAsset,
+    SeasonConstructorEntry,
     SeasonDriverEntry,
 )
 
@@ -51,7 +53,17 @@ def build_storage_key(
             f"drivers/{season}/"
             f"{key.upper()}{suffix}"
         )
+    
+    if asset_type == "constructor":
+        if season is None:
+            raise ValueError(
+                "Constructor asset requires season"
+            )
 
+        return (
+            f"constructors/{season}/"
+            f"{key.lower()}{suffix}"
+        )
     raise ValueError(
         f"Unsupported asset type: {asset_type}"
     )
@@ -333,6 +345,168 @@ def import_driver(
 
     return True
 
+def import_constructor(
+    db,
+    *,
+    manifest_path: Path,
+    row: dict[str, str],
+    dry_run: bool,
+) -> bool:
+    constructor_ref = (
+        row["key"]
+        .strip()
+        .lower()
+    )
+
+    season_text = (
+        row.get("season")
+        or ""
+    ).strip()
+
+    if not season_text:
+        print(
+            f"ERROR constructor "
+            f"{constructor_ref}: "
+            "season is required"
+        )
+        return False
+
+    try:
+        season = int(season_text)
+
+    except ValueError:
+        print(
+            f"ERROR constructor "
+            f"{constructor_ref}: "
+            f"invalid season {season_text}"
+        )
+        return False
+
+    # constructor_ref를 기준으로
+    # 안정적으로 팀 검색
+    constructor = db.scalar(
+        select(Constructor)
+        .where(
+            Constructor.constructor_ref
+            == constructor_ref
+        )
+    )
+
+    if constructor is None:
+        print(
+            f"ERROR constructor "
+            f"{constructor_ref}: "
+            "constructor not found in DB"
+        )
+        return False
+
+    entry = db.scalar(
+        select(SeasonConstructorEntry)
+        .where(
+            SeasonConstructorEntry.season_year
+            == season,
+            SeasonConstructorEntry.constructor_id
+            == constructor.id,
+        )
+    )
+
+    if entry is None:
+        print(
+            f"ERROR constructor "
+            f"{constructor_ref}: "
+            f"no season entry for {season}"
+        )
+        return False
+
+    file_path = resolve_file(
+        manifest_path,
+        row["file"].strip(),
+    )
+
+    if not file_path.is_file():
+        print(
+            f"ERROR constructor "
+            f"{constructor_ref}: "
+            f"file not found: {file_path}"
+        )
+        return False
+
+    storage_key = build_storage_key(
+        "constructor",
+        constructor_ref,
+        file_path,
+        season,
+    )
+
+    mime_type, _ = mimetypes.guess_type(
+        file_path.name
+    )
+
+    print(
+        f"OK constructor "
+        f"{constructor_ref}"
+        f" -> {constructor.name}"
+        f" ({season})"
+        f" -> {storage_key}"
+    )
+
+    if dry_run:
+        return True
+
+    asset = db.scalar(
+        select(MediaAsset)
+        .where(
+            MediaAsset.storage_key
+            == storage_key
+        )
+    )
+
+    upload_file(
+        file_path,
+        storage_key,
+        mime_type,
+    )
+
+    if asset is None:
+        asset = MediaAsset(
+            asset_type="CONSTRUCTOR_LOGO",
+            storage_key=storage_key,
+            public_url=None,
+            mime_type=mime_type,
+            alt_text=(
+                (row.get("alt_text") or "").strip()
+                or f"{constructor.name} logo"
+            ),
+            created_at=datetime.now(
+                UTC
+            ).replace(
+                tzinfo=None
+            ),
+        )
+
+        db.add(asset)
+        db.flush()
+
+    else:
+        asset.mime_type = mime_type
+
+        if row.get("alt_text"):
+            asset.alt_text = (
+                row["alt_text"]
+                .strip()
+            )
+
+    entry.logo_image_id = asset.id
+
+    db.commit()
+
+    print(
+        f"   media_asset_id={asset.id}, "
+        f"logo_image_id={entry.logo_image_id}"
+    )
+
+    return True
+
 def import_manifest(
     manifest_path: Path,
     dry_run: bool,
@@ -395,7 +569,13 @@ def import_manifest(
                             row=row,
                             dry_run=dry_run,
                         )
-
+                    elif asset_type == "constructor":
+                        ok = import_constructor(
+                            db,
+                            manifest_path=manifest_path,
+                            row=row,
+                            dry_run=dry_run,
+                        )
                     else:
                         print(
                             "ERROR unsupported type: "
