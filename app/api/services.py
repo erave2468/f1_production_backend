@@ -458,16 +458,30 @@ def _race_result_time(result: SessionResult, leader_laps: int | None) -> str | N
 
     return _non_finish_code(result.status) or _duration(result.total_time_us)
 
-def get_grand_prix_result(db: Session, grand_prix_id: int) -> GrandPrixResultResponse:
+def get_grand_prix_result(
+    db: Session,
+    grand_prix_id: int,
+    session_type: SessionType = SessionType.R,
+) -> GrandPrixResultResponse:
+    if session_type not in {SessionType.R, SessionType.S}:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Result session must be R (race) or S (sprint)",
+        )
+
     gp = _get_gp(db, grand_prix_id)
-    race = _get_session(db, gp.id, SessionType.R)
-    rank_changes = _driver_rank_changes(db, gp.season_year, gp.round_number)
+    result_session = _get_session(db, gp.id, session_type)
+    rank_changes = (
+        _driver_rank_changes(db, gp.season_year, gp.round_number)
+        if session_type == SessionType.R
+        else {}
+    )
     rows = db.execute(
         select(SessionEntry, SessionResult, Driver, Constructor)
         .join(SessionResult, SessionResult.session_entry_id == SessionEntry.id)
         .join(Driver, Driver.id == SessionEntry.driver_id)
         .join(Constructor, Constructor.id == SessionEntry.constructor_id)
-        .where(SessionEntry.session_id == race.id)
+        .where(SessionEntry.session_id == result_session.id)
         .order_by(SessionResult.finishing_position, SessionEntry.id)
     ).all()
 
@@ -492,19 +506,24 @@ def get_grand_prix_result(db: Session, grand_prix_id: int) -> GrandPrixResultRes
             racetime=_race_result_time(result, leader_laps),
         ))
 
-    dotd_row = db.execute(
-        select(DriverOfTheDay, SessionEntry)
-        .outerjoin(SessionEntry, (SessionEntry.session_id == race.id) & (SessionEntry.driver_id == DriverOfTheDay.driver_id))
-        .where(DriverOfTheDay.grand_prix_id == gp.id)
-    ).first()
     dotd = None
-    if dotd_row:
-        entity, race_entry = dotd_row
-        dotd = DotdResponse(
-            driver_id=entity.driver_id,
-            dotd_image_id=_driver_portrait_id(db, gp.season_year, entity.driver_id),
-            starting_grid=race_entry.grid_position if race_entry else None,
-        )
+    if session_type == SessionType.R:
+        dotd_row = db.execute(
+            select(DriverOfTheDay, SessionEntry)
+            .outerjoin(
+                SessionEntry,
+                (SessionEntry.session_id == result_session.id)
+                & (SessionEntry.driver_id == DriverOfTheDay.driver_id),
+            )
+            .where(DriverOfTheDay.grand_prix_id == gp.id)
+        ).first()
+        if dotd_row:
+            entity, race_entry = dotd_row
+            dotd = DotdResponse(
+                driver_id=entity.driver_id,
+                dotd_image_id=_driver_portrait_id(db, gp.season_year, entity.driver_id),
+                starting_grid=race_entry.grid_position if race_entry else None,
+            )
     return GrandPrixResultResponse(driver=drivers, dotd=dotd)
 
 
@@ -571,30 +590,15 @@ def _non_finish_code(status_text: str | None) -> str | None:
 
     return "DNF"
 
-def get_grand_prix_result(
-    db: Session,
-    grand_prix_id: int,
-    session_type: SessionType = SessionType.R,
-) -> GrandPrixResultResponse:
-    if session_type not in {SessionType.R, SessionType.S}:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Result session must be R (race) or S (sprint)",
-        )
-
+def get_grand_prix_detail(db: Session, grand_prix_id: int, session_type: SessionType) -> list[GrandPrixDetailDriver]:
     gp = _get_gp(db, grand_prix_id)
-    result_session = _get_session(db, gp.id, session_type)
-    rank_changes = (
-        _driver_rank_changes(db, gp.season_year, gp.round_number)
-        if session_type == SessionType.R
-        else {}
-    )
+    session_row = _get_session(db, gp.id, session_type)
     rows = db.execute(
         select(SessionEntry, SessionResult, Driver, Constructor)
         .join(SessionResult, SessionResult.session_entry_id == SessionEntry.id)
         .join(Driver, Driver.id == SessionEntry.driver_id)
         .join(Constructor, Constructor.id == SessionEntry.constructor_id)
-        .where(SessionEntry.session_id == result_session.id)
+        .where(SessionEntry.session_id == session_row.id)
         .order_by(SessionResult.finishing_position, SessionEntry.id)
     ).all()
 
