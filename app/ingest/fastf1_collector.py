@@ -122,39 +122,140 @@ def _ensure_season(db: Session, year: int, schedule: pd.DataFrame | None = None)
     return _upsert_by(db, Season, {"year": year}, values)
 
 
-def _ensure_driver_from_row(db: Session, row: Any) -> Driver:
-    ref = clean_str(first_present(row, "DriverId", "driverId", "driver_ref"))
-    full_name = clean_str(first_present(row, "FullName", "fullName"))
-    given = clean_str(first_present(row, "givenName", "FirstName"))
-    family = clean_str(first_present(row, "familyName", "LastName"))
+def _ensure_driver_from_row(
+    db: Session,
+    row: Any,
+) -> Driver:
+    ref = clean_str(first_present(row,"DriverId","driverId","driver_ref",))
+    full_name = clean_str(first_present(row,"FullName","fullName",))
+    given = clean_str(first_present(row,"givenName","FirstName",))
+    family = clean_str(first_present(row,"familyName","LastName",))
     if not full_name:
-        full_name = " ".join(x for x in (given, family) if x) or clean_str(first_present(row, "BroadcastName", "Driver"))
-    abbreviation = clean_str(first_present(row, "Abbreviation", "driverCode", "code"), max_len=3)
-    number = clean_int(first_present(row, "DriverNumber", "permanentNumber", "driverNumber"), positive_only=True)
+        full_name = (
+            " ".join(
+                x
+                for x in (given, family)
+                if x
+            )
+            or clean_str(
+                first_present(row,"BroadcastName","Driver",)
+            )
+        )
+
+    abbreviation = clean_str(first_present(row,"Abbreviation","driverCode","code",),max_len=3,)
+
+    if abbreviation:
+        abbreviation = abbreviation.upper()
+
+    number = clean_int(first_present(row,"DriverNumber","permanentNumber","driverNumber",),positive_only=True,)
     nationality = clean_str(first_present(row,"driverNationality","nationality",))
-    if not ref:
-        ref = slugify(full_name or abbreviation or number, f"driver_{number or 'unknown'}")
-    return _upsert_by(
-        db,
-        Driver,
-        {"driver_ref": ref},
-        {
-            "permanent_number": number,
-            "abbreviation": abbreviation,
-            "full_name": full_name or ref,
-            "nationality": nationality,
-            "nationality_code": country_code_from_text(
-                nationality
-            ),
-            "date_of_birth": clean_date(
-                first_present(
-                    row,
-                    "dateOfBirth",
-                    "DateOfBirth",
+    date_of_birth = clean_date(first_present(row,"dateOfBirth","DateOfBirth",))
+
+    driver = None
+
+    if ref:
+        driver = db.scalar(
+            select(Driver)
+            .where(
+                Driver.driver_ref == ref
+            )
+        )
+
+    if driver is None and abbreviation:
+        candidates = db.scalars(
+            select(Driver)
+            .where(
+                Driver.abbreviation
+                == abbreviation
+            )
+        ).all()
+
+        if len(candidates) == 1:
+            driver = candidates[0]
+
+        elif len(candidates) > 1:
+            if date_of_birth:
+                dob_matches = [
+                    candidate
+                    for candidate in candidates
+                    if candidate.date_of_birth
+                    == date_of_birth
+                ]
+
+                if len(dob_matches) == 1:
+                    driver = dob_matches[0]
+
+            if driver is None and number:
+                number_matches = [
+                    candidate
+                    for candidate in candidates
+                    if candidate.permanent_number
+                    == number
+                ]
+
+                if len(number_matches) == 1:
+                    driver = number_matches[0]
+
+            if driver is None:
+                raise RuntimeError(
+                    "Ambiguous driver abbreviation "
+                    f"{abbreviation}: "
+                    f"{[d.id for d in candidates]}"
                 )
-            ),
-        },
+
+
+    if driver is not None:
+        if abbreviation:
+            driver.abbreviation = abbreviation
+
+        if number:
+            driver.permanent_number = number
+
+        if full_name:
+            driver.full_name = full_name
+
+        if nationality:
+            driver.nationality = nationality
+
+            driver.nationality_code = (
+                country_code_from_text(
+                    nationality
+                )
+            )
+
+        if date_of_birth:
+            driver.date_of_birth = date_of_birth
+
+        db.flush()
+
+        return driver
+
+    if not ref:
+        ref = slugify(
+            full_name
+            or abbreviation
+            or number,
+            f"driver_{number or 'unknown'}",
+        )
+
+    driver = Driver(
+        driver_ref=ref,
+        permanent_number=number,
+        abbreviation=abbreviation,
+        full_name=full_name or ref,
+        nationality=nationality,
+        nationality_code=(
+            country_code_from_text(nationality)
+            if nationality
+            else None
+        ),
+        date_of_birth=date_of_birth,
     )
+
+    db.add(driver)
+    db.flush()
+
+    return driver
 
 
 def _ensure_constructor_from_row(db: Session, row: Any) -> Constructor:
