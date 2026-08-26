@@ -571,15 +571,30 @@ def _non_finish_code(status_text: str | None) -> str | None:
 
     return "DNF"
 
-def get_grand_prix_detail(db: Session, grand_prix_id: int, session_type: SessionType) -> list[GrandPrixDetailDriver]:
+def get_grand_prix_result(
+    db: Session,
+    grand_prix_id: int,
+    session_type: SessionType = SessionType.R,
+) -> GrandPrixResultResponse:
+    if session_type not in {SessionType.R, SessionType.S}:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Result session must be R (race) or S (sprint)",
+        )
+
     gp = _get_gp(db, grand_prix_id)
-    session_row = _get_session(db, gp.id, session_type)
+    result_session = _get_session(db, gp.id, session_type)
+    rank_changes = (
+        _driver_rank_changes(db, gp.season_year, gp.round_number)
+        if session_type == SessionType.R
+        else {}
+    )
     rows = db.execute(
         select(SessionEntry, SessionResult, Driver, Constructor)
         .join(SessionResult, SessionResult.session_entry_id == SessionEntry.id)
         .join(Driver, Driver.id == SessionEntry.driver_id)
         .join(Constructor, Constructor.id == SessionEntry.constructor_id)
-        .where(SessionEntry.session_id == session_row.id)
+        .where(SessionEntry.session_id == result_session.id)
         .order_by(SessionResult.finishing_position, SessionEntry.id)
     ).all()
 

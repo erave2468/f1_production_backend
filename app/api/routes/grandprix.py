@@ -59,8 +59,12 @@ def grand_prix_overview(grand_prix_id: int, db: Db) -> GrandPrixOverviewResponse
 
 
 @router.get("/{grand_prix_id}/result", response_model=GrandPrixResultResponse)
-def grand_prix_result(grand_prix_id: int, db: Db) -> GrandPrixResultResponse:
-    return services.get_grand_prix_result(db, grand_prix_id)
+def grand_prix_result(
+    grand_prix_id: int,
+    db: Db,
+    session: Annotated[SessionType, Query(description="R (race) or S (sprint)")] = SessionType.R,
+) -> GrandPrixResultResponse:
+    return services.get_grand_prix_result(db, grand_prix_id, session)
 
 
 @router.get("/{grand_prix_id}/history", response_model=GrandPrixHistoryResponse)
