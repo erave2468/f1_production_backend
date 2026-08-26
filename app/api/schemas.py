@@ -127,6 +127,7 @@ class GrandPrixDetailDriver(BaseModel):
     team_image_id: int | None = None
     team_color: str | None = None
     racetime: str | None = None
+    position: int | None = None
     fastestlap: str | None = None
     speedtrap: float | None = None
     is_completed: bool

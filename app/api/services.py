@@ -632,6 +632,7 @@ def get_grand_prix_detail(db: Session, grand_prix_id: int, session_type: Session
                 if race_or_sprint
                 else _duration(result.total_time_us)
             ),
+            position=result.classified_position,
             fastestlap=_duration(result.fastest_lap_time),
             speedtrap=_float(speedtrap),
             is_completed=_is_completed_status(result.status),
