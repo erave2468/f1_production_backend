@@ -27,3 +27,6 @@ fastf1-cache/
 
 # Windows
 Thumbs.db
+
+# assets
+media_source/
