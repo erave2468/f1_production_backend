@@ -448,18 +448,15 @@ def _constructor_rank_changes(db: Session, season: int, after_round: int) -> dic
     return {constructor_id: previous.get(constructor_id, pos) - pos for constructor_id, pos in current.items()}
 
 def _race_result_time(result: SessionResult, leader_laps: int | None) -> str | None:
-    """Return elapsed time, or the classified finisher's laps behind."""
-    if (
-        leader_laps is not None
-        and result.laps_completed is not None
-        and _is_completed_status(result.status)
-    ):
-        laps_behind = leader_laps - result.laps_completed
-        if laps_behind > 0:
-            unit = "Lap" if laps_behind == 1 else "Laps"
-            return f"+{laps_behind} {unit}"
+    if _is_completed_status(result.status):
+        if leader_laps is not None and result.laps_completed is not None:
+            laps_behind = leader_laps - result.laps_completed
+            if laps_behind > 0:
+                unit = "Lap" if laps_behind == 1 else "Laps"
+                return f"+{laps_behind} {unit}"
+        return _duration(result.total_time_us)
 
-    return _duration(result.total_time_us)
+    return _non_finish_code(result.status) or _duration(result.total_time_us)
 
 def get_grand_prix_result(db: Session, grand_prix_id: int) -> GrandPrixResultResponse:
     gp = _get_gp(db, grand_prix_id)
@@ -475,7 +472,10 @@ def get_grand_prix_result(db: Session, grand_prix_id: int) -> GrandPrixResultRes
     ).all()
 
     leader_laps = max(
-        (result.laps_completed for _, result, _, _ in rows if result.laps_completed is not None),
+        (   result.laps_completed 
+            for _, result, _, _ in rows 
+            if result.laps_completed is not None
+        ),
         default=None,
     )
 
@@ -543,9 +543,33 @@ def get_grand_prix_history(db: Session, grand_prix_id: int, session_type: Sessio
 def _is_completed_status(status_text: str | None) -> bool:
     if not status_text:
         return False
-    text = status_text.strip().lower()
-    return text == "finished" or text.startswith("+") or "lap" in text
 
+    text = status_text.strip().lower()
+    return text == "finished" or text.startswith("+")
+
+def _non_finish_code(status_text: str | None) -> str | None:
+    if not status_text or _is_completed_status(status_text):
+        return None
+
+    text = status_text.strip().lower()
+
+    if "disqual" in text or "excluded" in text:
+        return "DSQ"
+
+    if "did not start" in text or text == "dns":
+        return "DNS"
+
+    if (
+        "did not qualify" in text
+        or "did not prequalify" in text
+        or text == "dnq"
+    ):
+        return "DNQ"
+
+    if "withdraw" in text or text == "wd":
+        return "WD"
+
+    return "DNF"
 
 def get_grand_prix_detail(db: Session, grand_prix_id: int, session_type: SessionType) -> list[GrandPrixDetailDriver]:
     gp = _get_gp(db, grand_prix_id)
@@ -558,6 +582,12 @@ def get_grand_prix_detail(db: Session, grand_prix_id: int, session_type: Session
         .where(SessionEntry.session_id == session_row.id)
         .order_by(SessionResult.finishing_position, SessionEntry.id)
     ).all()
+
+    race_or_sprint = session_type in {SessionType.R, SessionType.S}
+    leader_laps = max(
+        (result.laps_completed for _, result, _, _ in rows if result.laps_completed is not None),
+        default=None,
+    ) if race_or_sprint else None
 
     result_list: list[GrandPrixDetailDriver] = []
     for entry, result, driver, constructor in rows:
@@ -572,17 +602,16 @@ def get_grand_prix_detail(db: Session, grand_prix_id: int, session_type: Session
             ).where(Lap.session_entry_id == entry.id)
         ).one()
         theoretical = s1 + s2 + s3 if None not in (s1, s2, s3) else None
-        race_or_sprint = session_type in {SessionType.R, SessionType.S}
-        leader_laps = max(
-                (result.laps_completed for _, result, _, _ in rows if result.laps_completed is not None),
-                default=None,
-            )
         result_list.append(GrandPrixDetailDriver(
             driver_id=driver.id,
             name=driver.full_name,
             team_image_id=logo_id,
             team_color=color,
-            racetime=_race_result_time(result, leader_laps),
+            racetime=(
+                _race_result_time(result, leader_laps)
+                if race_or_sprint
+                else _duration(result.total_time_us)
+            ),
             fastestlap=_duration(result.fastest_lap_time),
             speedtrap=_float(speedtrap),
             is_completed=_is_completed_status(result.status),
