@@ -16,6 +16,7 @@ from app.models import (
     Circuit,
     Constructor,
     ConstructorStanding,
+    Country,
     Driver,
     DriverStanding,
     GrandPrix,
@@ -47,7 +48,10 @@ from app.ingest.helpers import (
     td_to_us,
     to_utc_naive,
 )
-
+from app.country_data import (
+    country_code_from_text,
+    seed_countries,
+)
 log = logging.getLogger(__name__)
 
 SESSION_NAME_TO_TYPE: dict[str, SessionType] = {
@@ -127,6 +131,7 @@ def _ensure_driver_from_row(db: Session, row: Any) -> Driver:
         full_name = " ".join(x for x in (given, family) if x) or clean_str(first_present(row, "BroadcastName", "Driver"))
     abbreviation = clean_str(first_present(row, "Abbreviation", "driverCode", "code"), max_len=3)
     number = clean_int(first_present(row, "DriverNumber", "permanentNumber", "driverNumber"), positive_only=True)
+    nationality = clean_str(first_present(row,"driverNationality","nationality",))
     if not ref:
         ref = slugify(full_name or abbreviation or number, f"driver_{number or 'unknown'}")
     return _upsert_by(
@@ -137,8 +142,17 @@ def _ensure_driver_from_row(db: Session, row: Any) -> Driver:
             "permanent_number": number,
             "abbreviation": abbreviation,
             "full_name": full_name or ref,
-            "nationality": clean_str(first_present(row, "driverNationality", "nationality")),
-            "date_of_birth": clean_date(first_present(row, "dateOfBirth", "DateOfBirth")),
+            "nationality": nationality,
+            "nationality_code": country_code_from_text(
+                nationality
+            ),
+            "date_of_birth": clean_date(
+                first_present(
+                    row,
+                    "dateOfBirth",
+                    "DateOfBirth",
+                )
+            ),
         },
     )
 
@@ -146,6 +160,7 @@ def _ensure_driver_from_row(db: Session, row: Any) -> Driver:
 def _ensure_constructor_from_row(db: Session, row: Any) -> Constructor:
     ref = clean_str(first_present(row, "TeamId", "constructorId", "constructor_ref"))
     name = clean_str(first_present(row, "TeamName", "constructorName", "name", "Constructor"))
+    nationality = clean_str(first_present(row,"constructorNationality","nationality",))
     if not ref:
         ref = slugify(name, "constructor_unknown")
     return _upsert_by(
@@ -154,8 +169,17 @@ def _ensure_constructor_from_row(db: Session, row: Any) -> Constructor:
         {"constructor_ref": ref},
         {
             "name": name or ref,
-            "full_name": clean_str(first_present(row, "FullTeamName", "constructorFullName")),
-            "nationality": clean_str(first_present(row, "constructorNationality", "nationality")),
+            "full_name": clean_str(
+                first_present(
+                    row,
+                    "FullTeamName",
+                    "constructorFullName",
+                )
+            ),
+            "nationality": nationality,
+            "nationality_code": country_code_from_text(
+                nationality
+            ),
         },
     )
 
@@ -163,6 +187,7 @@ def _ensure_constructor_from_row(db: Session, row: Any) -> Constructor:
 def _ensure_circuit_from_row(db: Session, row: Any) -> Circuit:
     ref = clean_str(first_present(row, "circuitId", "CircuitId"))
     name = clean_str(first_present(row, "circuitName", "CircuitName", "Location"))
+    country_name = clean_str(first_present(row,"country","Country",))
     if not ref:
         ref = slugify(name, "circuit_unknown")
     return _upsert_by(
@@ -171,10 +196,31 @@ def _ensure_circuit_from_row(db: Session, row: Any) -> Circuit:
         {"circuit_ref": ref},
         {
             "name": name or ref,
-            "city": clean_str(first_present(row, "locality", "Locality")),
-            "country": clean_str(first_present(row, "country", "Country")),
-            "latitude": clean_decimal(first_present(row, "lat", "Latitude")),
-            "longitude": clean_decimal(first_present(row, "long", "Longitude")),
+            "city": clean_str(
+                first_present(
+                    row,
+                    "locality",
+                    "Locality",
+                )
+            ),
+            "country": country_name,
+            "country_code": country_code_from_text(
+                country_name
+            ),
+            "latitude": clean_decimal(
+                first_present(
+                    row,
+                    "lat",
+                    "Latitude",
+                )
+            ),
+            "longitude": clean_decimal(
+                first_present(
+                    row,
+                    "long",
+                    "Longitude",
+                )
+            ),
         },
     )
 
@@ -182,11 +228,15 @@ def _ensure_circuit_from_row(db: Session, row: Any) -> Circuit:
 def ingest_reference_data(db: Session, year: int) -> None:
     """Populate season, drivers, constructors and circuits from FastF1's Ergast/Jolpica interface."""
     _, Ergast = _fastf1_modules()
+
+    
     ergast = Ergast(result_type="pandas", auto_cast=True, limit=1000)
 
     drivers = ergast.get_driver_info(season=year)
     constructors = ergast.get_constructor_info(season=year)
     circuits = ergast.get_circuits(season=year)
+
+    seed_countries(db)
 
     _ensure_season(db, year)
     for _, row in drivers.iterrows():
@@ -217,6 +267,7 @@ def ingest_schedule(db: Session, year: int) -> None:
     """Create GrandPrix and Session rows from FastF1's event schedule."""
     fastf1, Ergast = _fastf1_modules()
     ff_schedule = fastf1.get_event_schedule(year, include_testing=False)
+    seed_countries(db)
     _ensure_season(db, year, ff_schedule)
 
     # Ergast schedule gives stable circuit identifiers/locations.
@@ -247,6 +298,19 @@ def ingest_schedule(db: Session, year: int) -> None:
         start_date = min(session_dates).date() if session_dates else (event_date.date() if event_date else None)
         end_date = max(session_dates).date() if session_dates else (event_date.date() if event_date else None)
 
+        event_country = clean_str(
+            first_present(
+                row,
+                "Country",
+                "country",
+            )
+        )
+
+        event_country_code = (
+            country_code_from_text(event_country)
+            or circuit.country_code
+        )
+
         gp = _upsert_by(
             db,
             GrandPrix,
@@ -259,6 +323,7 @@ def ingest_schedule(db: Session, year: int) -> None:
                 "weekend_start_date": start_date,
                 "weekend_end_date": end_date,
                 "status": "scheduled",
+                "country_code": event_country_code,
             },
         )
 
