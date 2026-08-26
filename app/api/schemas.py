@@ -70,6 +70,7 @@ class GrandPrixResultDriver(BaseModel):
     name: str
     teamname: str
     team_image_id: int | None = None
+    position: int | None = None
     points: float | None = None
     rank_change: int = 0
     racetime: str | None = None

@@ -501,6 +501,7 @@ def get_grand_prix_result(
             name=driver.full_name,
             teamname=constructor.name,
             team_image_id=logo_id,
+            position=result.classified_position,
             points=_float(result.points),
             rank_change=rank_changes.get(driver.id, 0),
             racetime=_race_result_time(result, leader_laps),
