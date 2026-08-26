@@ -447,6 +447,19 @@ def _constructor_rank_changes(db: Session, season: int, after_round: int) -> dic
         ConstructorStanding.season_year == season, ConstructorStanding.after_round == after_round - 1)).all()) if after_round > 1 else {}
     return {constructor_id: previous.get(constructor_id, pos) - pos for constructor_id, pos in current.items()}
 
+def _race_result_time(result: SessionResult, leader_laps: int | None) -> str | None:
+    """Return elapsed time, or the classified finisher's laps behind."""
+    if (
+        leader_laps is not None
+        and result.laps_completed is not None
+        and _is_completed_status(result.status)
+    ):
+        laps_behind = leader_laps - result.laps_completed
+        if laps_behind > 0:
+            unit = "Lap" if laps_behind == 1 else "Laps"
+            return f"+{laps_behind} {unit}"
+
+    return _duration(result.total_time_us)
 
 def get_grand_prix_result(db: Session, grand_prix_id: int) -> GrandPrixResultResponse:
     gp = _get_gp(db, grand_prix_id)
@@ -461,6 +474,11 @@ def get_grand_prix_result(db: Session, grand_prix_id: int) -> GrandPrixResultRes
         .order_by(SessionResult.finishing_position, SessionEntry.id)
     ).all()
 
+    leader_laps = max(
+        (result.laps_completed for _, result, _, _ in rows if result.laps_completed is not None),
+        default=None,
+    )
+
     drivers: list[GrandPrixResultDriver] = []
     for entry, result, driver, constructor in rows:
         logo_id, _ = _team_meta(db, gp.season_year, constructor.id)
@@ -471,7 +489,7 @@ def get_grand_prix_result(db: Session, grand_prix_id: int) -> GrandPrixResultRes
             team_image_id=logo_id,
             points=_float(result.points),
             rank_change=rank_changes.get(driver.id, 0),
-            racetime=_duration(result.total_time_us),
+            racetime=_race_result_time(result, leader_laps),
         ))
 
     dotd_row = db.execute(
@@ -555,12 +573,16 @@ def get_grand_prix_detail(db: Session, grand_prix_id: int, session_type: Session
         ).one()
         theoretical = s1 + s2 + s3 if None not in (s1, s2, s3) else None
         race_or_sprint = session_type in {SessionType.R, SessionType.S}
+        leader_laps = max(
+                (result.laps_completed for _, result, _, _ in rows if result.laps_completed is not None),
+                default=None,
+            )
         result_list.append(GrandPrixDetailDriver(
             driver_id=driver.id,
             name=driver.full_name,
             team_image_id=logo_id,
             team_color=color,
-            racetime=_duration(result.total_time_us),
+            racetime=_race_result_time(result, leader_laps),
             fastestlap=_duration(result.fastest_lap_time),
             speedtrap=_float(speedtrap),
             is_completed=_is_completed_status(result.status),
