@@ -10,7 +10,12 @@ from sqlalchemy import select
 
 from app.db import SessionLocal
 from app.media_storage import upload_file
-from app.models import Country, MediaAsset
+from app.models import (
+    Country,
+    Driver,
+    MediaAsset,
+    SeasonDriverEntry,
+)
 
 
 def resolve_file(
@@ -29,16 +34,27 @@ def build_storage_key(
     asset_type: str,
     key: str,
     file_path: Path,
+    season: int | None = None,
 ) -> str:
     suffix = file_path.suffix.lower()
 
     if asset_type == "country":
         return f"countries/{key.upper()}{suffix}"
 
+    if asset_type == "driver":
+        if season is None:
+            raise ValueError(
+                "Driver asset requires season"
+            )
+
+        return (
+            f"drivers/{season}/"
+            f"{key.upper()}{suffix}"
+        )
+
     raise ValueError(
         f"Unsupported asset type: {asset_type}"
     )
-
 
 def find_country(
     db,
@@ -159,6 +175,163 @@ def import_country(
 
     return True
 
+def import_driver(
+    db,
+    *,
+    manifest_path: Path,
+    row: dict[str, str],
+    dry_run: bool,
+) -> bool:
+    abbreviation = (
+        row["key"]
+        .strip()
+        .upper()
+    )
+
+    season_text = (
+        row.get("season")
+        or ""
+    ).strip()
+
+    if not season_text:
+        print(
+            f"ERROR driver {abbreviation}: "
+            "season is required"
+        )
+        return False
+
+    try:
+        season = int(season_text)
+
+    except ValueError:
+        print(
+            f"ERROR driver {abbreviation}: "
+            f"invalid season {season_text}"
+        )
+        return False
+
+    driver = db.scalar(
+        select(Driver)
+        .where(
+            Driver.abbreviation
+            == abbreviation
+        )
+    )
+
+    if driver is None:
+        print(
+            f"ERROR driver {abbreviation}: "
+            "driver not found in DB"
+        )
+        return False
+
+    entries = db.scalars(
+        select(SeasonDriverEntry)
+        .where(
+            SeasonDriverEntry.season_year
+            == season,
+            SeasonDriverEntry.driver_id
+            == driver.id,
+        )
+    ).all()
+
+    if not entries:
+        print(
+            f"ERROR driver {abbreviation}: "
+            f"no season entry for {season}"
+        )
+        return False
+
+    file_path = resolve_file(
+        manifest_path,
+        row["file"].strip(),
+    )
+
+    if not file_path.is_file():
+        print(
+            f"ERROR driver {abbreviation}: "
+            f"file not found: {file_path}"
+        )
+        return False
+
+    storage_key = build_storage_key(
+        "driver",
+        abbreviation,
+        file_path,
+        season,
+    )
+
+    mime_type, _ = mimetypes.guess_type(
+        file_path.name
+    )
+
+    print(
+        f"OK driver {abbreviation}"
+        f" -> {driver.full_name}"
+        f" ({season})"
+        f" -> {storage_key}"
+    )
+
+    if dry_run:
+        return True
+
+    asset = db.scalar(
+        select(MediaAsset)
+        .where(
+            MediaAsset.storage_key
+            == storage_key
+        )
+    )
+
+    upload_file(
+        file_path,
+        storage_key,
+        mime_type,
+    )
+
+    if asset is None:
+        asset = MediaAsset(
+            asset_type="DRIVER_PORTRAIT",
+            storage_key=storage_key,
+            public_url=None,
+            mime_type=mime_type,
+            alt_text=(
+                row.get("alt_text")
+                or driver.full_name
+            ),
+            created_at=datetime.now(
+                UTC
+            ).replace(
+                tzinfo=None
+            ),
+        )
+
+        db.add(asset)
+        db.flush()
+
+    else:
+        asset.mime_type = mime_type
+
+        if row.get("alt_text"):
+            asset.alt_text = (
+                row["alt_text"]
+                .strip()
+            )
+
+    # 같은 시즌에 팀을 옮겼더라도
+    # 해당 드라이버의 모든 시즌 엔트리에
+    # 같은 portrait를 연결
+    for entry in entries:
+        entry.portrait_image_id = asset.id
+
+    db.commit()
+
+    print(
+        f"   media_asset_id={asset.id}, "
+        f"updated_entries={len(entries)}"
+    )
+
+    return True
 
 def import_manifest(
     manifest_path: Path,
@@ -214,6 +387,15 @@ def import_manifest(
                             row=row,
                             dry_run=dry_run,
                         )
+
+                    elif asset_type == "driver":
+                        ok = import_driver(
+                            db,
+                            manifest_path=manifest_path,
+                            row=row,
+                            dry_run=dry_run,
+                        )
+
                     else:
                         print(
                             "ERROR unsupported type: "

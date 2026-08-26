@@ -1,2 +1,22 @@
-type,key,file,alt_text
-country,JP,../media_source/countries/JP.png,Japan flag
+type,key,season,file,alt_text
+country,JP,,../media_source/countries/JP.png,Japan flag
+driver,ALB,2026,../media_source/drivers/2026/ALB.png,Alexander Albon
+driver,ALO,2026,../media_source/drivers/2026/ALO.png,Fernando Alonso
+driver,ANT,2026,../media_source/drivers/2026/ANT.png,Kimi Antonelli
+driver,BEA,2026,../media_source/drivers/2026/BEA.png,Oliver Bearman
+driver,BOR,2026,../media_source/drivers/2026/BOR.png,Gabriel Bortoleto
+driver,COL,2026,../media_source/drivers/2026/COL.png,Franco Colapinto
+driver,VER,2026,../media_source/drivers/2026/VER.png,Max Verstappen
+driver,NOR,2026,../media_source/drivers/2026/NOR.png,Lando Norris
+driver,LEC,2026,../media_source/drivers/2026/LEC.png,Charles Leclerc
+driver,GAS,2026,../media_source/drivers/2026/GAS.png,Pierre Gasly
+driver,HAD,2026,../media_source/drivers/2026/HAD.png,Isack Hadjar
+driver,HAM,2026,../media_source/drivers/2026/HAM.png,Lewis Hamilton
+driver,HUL,2026,../media_source/drivers/2026/HUL.png,Nico Hulkenberg
+driver,LAW,2026,../media_source/drivers/2026/LAW.png,Liam Lawson
+driver,OCO,2026,../media_source/drivers/2026/OCO.png,Esteban Ocon
+driver,PER,2026,../media_source/drivers/2026/PER.png,Sergio Perez
+driver,PIA,2026,../media_source/drivers/2026/PIA.png,Oscar Piastri
+driver,RUS,2026,../media_source/drivers/2026/RUS.png,George Russell
+driver,SAI,2026,../media_source/drivers/2026/SAI.png,Carlos Sainz
+driver,STR,2026,../media_source/drivers/2026/STR.png,Lance Stroll
