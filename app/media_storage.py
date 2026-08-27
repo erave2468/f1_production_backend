@@ -62,3 +62,20 @@ def object_exists(storage_key: str) -> bool:
             return False
 
         raise
+
+
+def generate_download_url(
+    storage_key: str,
+    *,
+    expires_in: int = 300,
+) -> str:
+    s3 = get_s3_client()
+
+    return s3.generate_presigned_url(
+        "get_object",
+        Params={
+            "Bucket": settings.media_s3_bucket,
+            "Key": storage_key,
+        },
+        ExpiresIn=expires_in,
+    )

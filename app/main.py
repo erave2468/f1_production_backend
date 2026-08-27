@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
-from app.api.routes import championship, circuit, grandprix
+from app.api.routes import championship, circuit, grandprix, media
 from app.config import settings
 from app.db import engine
 
@@ -24,6 +24,7 @@ app.add_middleware(
 app.include_router(grandprix.router, prefix="/api")
 app.include_router(championship.router, prefix="/api")
 app.include_router(circuit.router, prefix="/api")
+app.include_router(media.router, prefix="/api")
 
 
 @app.get("/health", tags=["system"])
