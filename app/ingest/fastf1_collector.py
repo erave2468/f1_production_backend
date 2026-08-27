@@ -6,6 +6,7 @@ from collections import defaultdict
 from datetime import timedelta
 from pathlib import Path
 from typing import Any, Iterable
+from datetime import UTC, datetime, timedelta
 
 import pandas as pd
 from sqlalchemy import delete, func, select
@@ -1321,11 +1322,32 @@ def ingest_round(db: Session, year: int, round_number: int) -> None:
     sessions = db.scalars(
         select(SessionModel)
         .where(SessionModel.grand_prix_id == gp.id)
-        .order_by(SessionModel.scheduled_start, SessionModel.id)
+        .order_by(SessionModel.scheduled_start,SessionModel.id,)
     ).all()
+
+    now = datetime.now(UTC).replace(
+        tzinfo=None
+    )
+
     for s in sessions:
+        # 아직 시작하지 않은 미래 세션은
+        # FastF1 데이터가 없으므로 건너뜀
+        if (
+            s.scheduled_start is not None
+            and s.scheduled_start > now
+        ):
+            log.info(
+                "Skipping future session: "
+                "%s R%s %s (%s)",
+                year,
+                round_number,
+                s.type.value,
+                s.scheduled_start,
+            )
+            continue
+
         try:
-            ingest_session(db, year, round_number, s.type.value)
+            ingest_session(db,year,round_number,s.type.value,)
         except Exception:
             db.rollback()
             log.exception("Failed to ingest %s R%s %s", year, round_number, s.type.value)
