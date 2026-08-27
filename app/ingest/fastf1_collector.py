@@ -70,13 +70,25 @@ def _source_str(
     if not value:
         return None
 
-    if value.strip().lower() in {
+    missing_words = {
         "none",
         "nan",
         "nat",
         "<na>",
         "null",
-    }:
+    }
+
+    normalized = value.strip().lower()
+
+    parts = normalized.split()
+
+    if (
+        parts
+        and all(
+            part in missing_words
+            for part in parts
+        )
+    ):
         return None
 
     return value
@@ -294,15 +306,15 @@ def _ensure_driver_from_row(
         return driver
 
     if not ref:
-        if full_name:
+        if abbreviation:
+            ref = (
+                f"driver_{abbreviation.lower()}"
+            )
+
+        elif full_name:
             ref = slugify(
                 full_name,
                 f"driver_{number or 'unknown'}",
-            )
-
-        elif abbreviation:
-            ref = (
-                f"driver_{abbreviation.lower()}"
             )
 
         elif number:
@@ -314,7 +326,6 @@ def _ensure_driver_from_row(
                 "no ref, abbreviation, "
                 "name or number"
             )
-
     driver = Driver(
         driver_ref=ref,
         permanent_number=number,
