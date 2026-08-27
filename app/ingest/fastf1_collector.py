@@ -853,6 +853,7 @@ def ingest_session(db: Session, year: int, round_number: int, session_code: str)
     _ingest_pit_stops(db, ff_session, entries)
     _ingest_weather(db, ff_session, session_row)
     _ingest_race_control(db, ff_session, session_row)
+    _ingest_race_periods(db,session_row,)
 
     actual_start, actual_end = _derive_actual_times(ff_session)
     session_row.actual_start = actual_start
@@ -969,3 +970,260 @@ def ingest_round(db: Session, year: int, round_number: int) -> None:
             log.exception("Failed to ingest %s R%s %s", year, round_number, s.type.value)
             raise
     ingest_standings(db, year, round_number)
+
+def _race_control_text(
+    event: RaceControlEvent,
+) -> str:
+    values = [
+        event.category,
+        event.event_type,
+        event.flag,
+        event.status,
+        event.message,
+    ]
+
+    return " ".join(
+        str(value)
+        for value in values
+        if value
+    ).upper()
+
+
+def _track_event_type(
+    event: RaceControlEvent,
+) -> str | None:
+    text = _race_control_text(event)
+
+    flag = (
+        event.flag.upper()
+        if event.flag
+        else None
+    )
+
+    # VSC를 반드시 일반 Safety Car보다
+    # 먼저 검사
+    if (
+        "VIRTUAL SAFETY CAR" in text
+        or "VSC" in text
+    ):
+        return "VSC"
+
+    if "SAFETY CAR" in text:
+        return "SAFETY_CAR"
+
+    if (
+        flag == "RED"
+        or "RED FLAG" in text
+    ):
+        return "RED_FLAG"
+
+    if (
+        flag == "YELLOW"
+        or "YELLOW FLAG" in text
+    ):
+        return "YELLOW_FLAG"
+
+    if (
+        flag == "GREEN"
+        or "GREEN FLAG" in text
+    ):
+        return "GREEN_FLAG"
+
+    if (
+        flag == "BLUE"
+        or "BLUE FLAG" in text
+    ):
+        return "BLUE_FLAG"
+
+    if (
+        "CHEQUERED FLAG" in text
+        or "CHECKERED FLAG" in text
+    ):
+        return "CHEQUERED_FLAG"
+
+    return None
+
+def _ingest_race_periods(
+    db: Session,
+    session_row: SessionModel,
+) -> None:
+    # SessionLocal이 autoflush=False이므로
+    # 방금 추가한 RaceControlEvent를
+    # SELECT 전에 반드시 flush
+    db.flush()
+
+    events = db.scalars(
+        select(RaceControlEvent)
+        .where(
+            RaceControlEvent.session_id
+            == session_row.id
+        )
+        .order_by(
+            RaceControlEvent.session_time_us,
+            RaceControlEvent.id,
+        )
+    ).all()
+
+    # 현재 진행 중인 구간
+    active: dict[
+        str,
+        RaceControlEvent,
+    ] = {}
+
+    def add_period(
+        period_type: str,
+        start_event: RaceControlEvent,
+        end_event: RaceControlEvent | None,
+    ) -> None:
+        db.add(
+            RacePeriod(
+                session_id=session_row.id,
+                period_type=period_type,
+
+                start_time_us=(
+                    start_event.session_time_us
+                ),
+                end_time_us=(
+                    end_event.session_time_us
+                    if end_event
+                    else None
+                ),
+
+                start_lap=(
+                    start_event.lap_number
+                ),
+                end_lap=(
+                    end_event.lap_number
+                    if end_event
+                    else None
+                ),
+
+                start_event_id=start_event.id,
+                end_event_id=(
+                    end_event.id
+                    if end_event
+                    else None
+                ),
+            )
+        )
+
+    for event in events:
+        text = _race_control_text(event)
+
+        event_type = _track_event_type(
+            event
+        )
+
+        # ───────────────────────
+        # RED FLAG 종료
+        #
+        # Red 이후 GREEN 또는
+        # SESSION RESUMED를 만나면 종료
+        # ───────────────────────
+
+        if "RED_FLAG" in active:
+            red_end = (
+                event_type == "GREEN_FLAG"
+                or "SESSION RESUM" in text
+                or "SESSION RESTART" in text
+            )
+
+            if red_end:
+                start_event = active.pop(
+                    "RED_FLAG"
+                )
+
+                add_period(
+                    "RED_FLAG",
+                    start_event,
+                    event,
+                )
+
+        # ───────────────────────
+        # SAFETY CAR
+        # ───────────────────────
+
+        if event_type == "SAFETY_CAR":
+            if "DEPLOYED" in text:
+                if "SAFETY_CAR" not in active:
+                    active[
+                        "SAFETY_CAR"
+                    ] = event
+
+            elif (
+                "IN THIS LAP" in text
+                or "ENDING" in text
+                or "ENDED" in text
+            ):
+                start_event = active.pop(
+                    "SAFETY_CAR",
+                    None,
+                )
+
+                if start_event:
+                    add_period(
+                        "SAFETY_CAR",
+                        start_event,
+                        event,
+                    )
+
+            continue
+
+        # ───────────────────────
+        # VIRTUAL SAFETY CAR
+        # ───────────────────────
+
+        if event_type == "VSC":
+            if "DEPLOYED" in text:
+                if "VSC" not in active:
+                    active["VSC"] = event
+
+            elif (
+                "ENDING" in text
+                or "ENDED" in text
+            ):
+                start_event = active.pop(
+                    "VSC",
+                    None,
+                )
+
+                if start_event:
+                    add_period(
+                        "VSC",
+                        start_event,
+                        event,
+                    )
+
+            continue
+
+        # ───────────────────────
+        # RED FLAG 시작
+        # ───────────────────────
+
+        if event_type == "RED_FLAG":
+            if "RED_FLAG" not in active:
+                active["RED_FLAG"] = event
+
+            continue
+
+        # ───────────────────────
+        # 일반 플래그
+        #
+        # 일단 단발 이벤트로 저장.
+        # 시작/종료 시간이 같다.
+        # ───────────────────────
+
+        if event_type in {
+            "YELLOW_FLAG",
+            "GREEN_FLAG",
+            "BLUE_FLAG",
+            "CHEQUERED_FLAG",
+        }:
+            add_period(event_type,event,event,)
+
+    # 종료 메시지를 찾지 못한 구간은
+    # end=NULL로 저장
+    for (period_type,start_event,) in active.items():
+        add_period(period_type,start_event,None,)
+
+    db.flush()

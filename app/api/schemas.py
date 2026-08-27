@@ -189,10 +189,14 @@ class CircuitResponse(BaseModel):
 
 class SessionEventItem(BaseModel):
     event_id: int
-    lap: int | None = None
 
-    event_time: str | None = None
+    start_lap: int | None = None
+    end_lap: int | None = None
 
+    start_time: str | None = None
+    end_time: str | None = None
+
+    # 세션 시작 이후 발생 시점
     session_time: str | None = None
 
     event_type: str
@@ -204,5 +208,4 @@ class SessionEventItem(BaseModel):
 
 
 class SessionEventResponse(BaseModel):
-    session_code: SessionType
     events: list[SessionEventItem]

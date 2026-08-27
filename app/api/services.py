@@ -55,6 +55,8 @@ from app.models import (
     TyreStint,
     WeatherSample,
     RaceControlEvent,
+    RacePeriod,
+    
 )
 
 
@@ -851,44 +853,83 @@ def get_session_events(
         session_type,
     )
 
-    events = db.scalars(
-        select(RaceControlEvent)
+    StartEvent = aliased(
+        RaceControlEvent
+    )
+
+    EndEvent = aliased(
+        RaceControlEvent
+    )
+
+    rows = db.execute(
+        select(
+            RacePeriod,
+            StartEvent,
+            EndEvent,
+        )
+        .join(
+            StartEvent,
+            StartEvent.id
+            == RacePeriod.start_event_id,
+        )
+        .outerjoin(
+            EndEvent,
+            EndEvent.id
+            == RacePeriod.end_event_id,
+        )
         .where(
-            RaceControlEvent.session_id
+            RacePeriod.session_id
             == session_row.id
         )
         .order_by(
-            RaceControlEvent.session_time_us,
-            RaceControlEvent.id,
+            RacePeriod.start_time_us,
+            RacePeriod.id,
         )
     ).all()
 
     return SessionEventResponse(
-        session_code=session_type,
         events=[
             SessionEventItem(
-                event_id=event.id,
-                lap=event.lap_number,
+                # 원본 시작 이벤트 ID
+                event_id=start_event.id,
 
-                event_time=_utc_iso(
-                    event.event_time
+                start_lap=period.start_lap,
+                end_lap=period.end_lap,
+
+                start_time=_utc_iso(
+                    start_event.event_time
+                ),
+
+                end_time=(
+                    _utc_iso(
+                        end_event.event_time
+                    )
+                    if end_event
+                    else None
                 ),
 
                 session_time=_duration(
-                    event.session_time_us
+                    period.start_time_us
                 ),
 
                 event_type=(
-                    _normalize_session_event_type(
-                        event
-                    )
+                    period.period_type
                 ),
 
-                category=event.category,
-                flag=event.flag,
-                status=event.status,
-                message=event.message,
+                category=(
+                    start_event.category
+                ),
+
+                flag=start_event.flag,
+
+                status=start_event.status,
+
+                message=start_event.message,
             )
-            for event in events
-        ],
+            for (
+                period,
+                start_event,
+                end_event,
+            ) in rows
+        ]
     )
