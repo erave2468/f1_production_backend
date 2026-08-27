@@ -154,19 +154,42 @@ def _ensure_driver_from_row(
     driver = None
 
     if ref:
-        driver = db.scalar(
+        candidate = db.scalar(
             select(Driver)
             .where(
                 Driver.driver_ref == ref
             )
         )
 
+        if candidate is not None:
+            # upstream ref가 기존 Driver를 가리키더라도
+            # abbreviation이 명백히 다르면
+            # 잘못된 매칭으로 간주
+            if (
+                abbreviation
+                and candidate.abbreviation
+                and candidate.abbreviation.upper()
+                != abbreviation.upper()
+            ):
+                log.warning(
+                    "Driver ref conflict: "
+                    "ref=%s resolved to id=%s "
+                    "abbr=%s, incoming abbr=%s; "
+                    "ignoring ref match",
+                    ref,
+                    candidate.id,
+                    candidate.abbreviation,
+                    abbreviation,
+                )
+            else:
+                driver = candidate
+
     if driver is None and abbreviation:
         candidates = db.scalars(
             select(Driver)
             .where(
-                Driver.abbreviation
-                == abbreviation
+                func.upper(Driver.abbreviation)
+                == abbreviation.upper()
             )
         ).all()
 
@@ -174,33 +197,35 @@ def _ensure_driver_from_row(
             driver = candidates[0]
 
         elif len(candidates) > 1:
+            # 생년월일 우선
             if date_of_birth:
-                dob_matches = [
+                matches = [
                     candidate
                     for candidate in candidates
                     if candidate.date_of_birth
                     == date_of_birth
                 ]
 
-                if len(dob_matches) == 1:
-                    driver = dob_matches[0]
+                if len(matches) == 1:
+                    driver = matches[0]
 
+            # 그래도 못 찾으면 번호 보조
             if driver is None and number:
-                number_matches = [
+                matches = [
                     candidate
                     for candidate in candidates
                     if candidate.permanent_number
                     == number
                 ]
 
-                if len(number_matches) == 1:
-                    driver = number_matches[0]
+                if len(matches) == 1:
+                    driver = matches[0]
 
             if driver is None:
                 raise RuntimeError(
                     "Ambiguous driver abbreviation "
                     f"{abbreviation}: "
-                    f"{[d.id for d in candidates]}"
+                    f"{[(d.id, d.driver_ref, d.full_name) for d in candidates]}"
                 )
 
 
@@ -558,7 +583,6 @@ def _derive_actual_times(ff_session: Any) -> tuple[Any, Any]:
             pass
     return start, end
 
-
 def _ingest_results_and_entries(
     db: Session,
     ff_session: Any,
@@ -567,88 +591,356 @@ def _ingest_results_and_entries(
 ) -> dict[str, SessionEntry]:
     results = ff_session.results
     laps = ff_session.laps
-    entries_by_number: dict[str, SessionEntry] = {}
 
-    # Practice/recent sessions can occasionally have no external result table yet.
-    # DriverResult objects still let us create session entries so lap data is not lost.
+    entries_by_number: dict[
+        str,
+        SessionEntry,
+    ] = {}
+
+    # 동일 세션에서 같은 driver_id가
+    # 두 번 매칭되는 문제를 미리 감지
+    seen_driver_ids: dict[
+        int,
+        dict[str, str | None],
+    ] = {}
+
+    # Practice/recent sessions can occasionally
+    # have no external result table yet.
     if results is None or results.empty:
         fallback_rows = []
-        for number in getattr(ff_session, "drivers", []) or []:
+
+        for number in (
+            getattr(
+                ff_session,
+                "drivers",
+                [],
+            )
+            or []
+        ):
             try:
-                fallback_rows.append(ff_session.get_driver(str(number)))
+                fallback_rows.append(
+                    ff_session.get_driver(
+                        str(number)
+                    )
+                )
+
             except Exception:
-                log.warning("Could not build driver row for number %s", number)
-        results = pd.DataFrame(fallback_rows)
+                log.warning(
+                    "Could not build driver row "
+                    "for number %s",
+                    number,
+                )
+
+        results = pd.DataFrame(
+            fallback_rows
+        )
+
+    # ─────────────────────────────
+    # Winner time
+    # ─────────────────────────────
 
     winner_time_us: int | None = None
+
     if not results.empty:
-        for _, r in results.iterrows():
-            pos = clean_int(first_present(r, "Position"), positive_only=True)
-            if pos == 1:
-                winner_time_us = td_to_us(first_present(r, "Time"))
+        for _, row in results.iterrows():
+            position = clean_int(
+                first_present(
+                    row,
+                    "Position",
+                ),
+                positive_only=True,
+            )
+
+            if position == 1:
+                winner_time_us = td_to_us(
+                    first_present(
+                        row,
+                        "Time",
+                    )
+                )
                 break
 
+    # ─────────────────────────────
+    # Driver entries/results
+    # ─────────────────────────────
+
     for _, row in results.iterrows():
-        driver = _ensure_driver_from_row(db, row)
-        constructor = _ensure_constructor_from_row(db, row)
-        number = clean_str(first_present(row, "DriverNumber"))
-        grid = clean_int(first_present(row, "GridPosition"), positive_only=True)
-        # Some upstream events expose -1 for unknown grid; store NULL, never -1.
+        driver = _ensure_driver_from_row(
+            db,
+            row,
+        )
+
+        constructor = (
+            _ensure_constructor_from_row(
+                db,
+                row,
+            )
+        )
+
+        number = clean_str(
+            first_present(
+                row,
+                "DriverNumber",
+            )
+        )
+
+        abbreviation = clean_str(
+            first_present(
+                row,
+                "Abbreviation",
+                "driverCode",
+                "code",
+            ),
+            max_len=3,
+        )
+
+        if abbreviation:
+            abbreviation = (
+                abbreviation.upper()
+            )
+
+        source_ref = clean_str(
+            first_present(
+                row,
+                "DriverId",
+                "driverId",
+                "driver_ref",
+            )
+        )
+
+        source_name = clean_str(
+            first_present(
+                row,
+                "FullName",
+                "fullName",
+                "BroadcastName",
+                "Driver",
+            )
+        )
+
+        # ─────────────────────────
+        # Driver resolver collision check
+        # ─────────────────────────
+
+        if driver.id in seen_driver_ids:
+            previous = (
+                seen_driver_ids[
+                    driver.id
+                ]
+            )
+
+            raise RuntimeError(
+                "Driver resolver collision "
+                f"in session {session_row.id}: "
+                f"driver_id={driver.id}; "
+                f"previous={previous}; "
+                f"current={{"
+                f"'number': {number!r}, "
+                f"'abbreviation': "
+                f"{abbreviation!r}, "
+                f"'ref': {source_ref!r}, "
+                f"'name': {source_name!r}"
+                f"}}"
+            )
+
+        seen_driver_ids[
+            driver.id
+        ] = {
+            "number": number,
+            "abbreviation": abbreviation,
+            "ref": source_ref,
+            "name": source_name,
+        }
+
+        grid = clean_int(
+            first_present(
+                row,
+                "GridPosition",
+            ),
+            positive_only=True,
+        )
+
         entry = SessionEntry(
             session_id=session_row.id,
             driver_id=driver.id,
             constructor_id=constructor.id,
-            racing_number=clean_int(number, positive_only=True),
-            abbreviation=clean_str(first_present(row, "Abbreviation"), max_len=3),
+            racing_number=clean_int(
+                number,
+                positive_only=True,
+            ),
+            abbreviation=abbreviation,
             grid_position=grid,
         )
+
         db.add(entry)
         db.flush()
+
         if number:
-            entries_by_number[str(number)] = entry
+            entries_by_number[
+                str(number)
+            ] = entry
 
-        finishing_position = clean_int(first_present(row, "Position"), positive_only=True)
-        classified_raw = clean_str(first_present(row, "ClassifiedPosition"))
-        classified_position = clean_int(classified_raw, positive_only=True)
-        displayed_position = classified_raw or (str(finishing_position) if finishing_position else None)
-        total_time_us = td_to_us(first_present(row, "Time"))
+        # ─────────────────────────
+        # Result
+        # ─────────────────────────
+
+        finishing_position = clean_int(
+            first_present(
+                row,
+                "Position",
+            ),
+            positive_only=True,
+        )
+
+        classified_raw = clean_str(
+            first_present(
+                row,
+                "ClassifiedPosition",
+            )
+        )
+
+        classified_position = clean_int(
+            classified_raw,
+            positive_only=True,
+        )
+
+        displayed_position = (
+            classified_raw
+            or (
+                str(finishing_position)
+                if finishing_position
+                else None
+            )
+        )
+
+        total_time_us = td_to_us(
+            first_present(
+                row,
+                "Time",
+            )
+        )
+
         gap = None
-        if total_time_us is not None and winner_time_us is not None:
-            gap = max(0, total_time_us - winner_time_us)
 
-        fastest_lap_number, fastest_lap_time = _find_fastest_lap(laps, number)
+        if (
+            total_time_us is not None
+            and winner_time_us is not None
+        ):
+            gap = max(
+                0,
+                total_time_us
+                - winner_time_us,
+            )
+
+        (
+            fastest_lap_number,
+            fastest_lap_time,
+        ) = _find_fastest_lap(
+            laps,
+            number,
+        )
+
         db.add(
             SessionResult(
                 session_entry_id=entry.id,
-                classified_position=classified_position,
-                displayed_position=displayed_position,
+
+                classified_position=(
+                    classified_position
+                ),
+
+                displayed_position=(
+                    displayed_position
+                ),
+
                 grid_position=grid,
-                finishing_position=finishing_position,
-                points=clean_decimal(first_present(row, "Points")),
-                status=clean_str(first_present(row, "Status")),
-                laps_completed=clean_int(first_present(row, "Laps")),
+
+                finishing_position=(
+                    finishing_position
+                ),
+
+                points=clean_decimal(
+                    first_present(
+                        row,
+                        "Points",
+                    )
+                ),
+
+                status=clean_str(
+                    first_present(
+                        row,
+                        "Status",
+                    )
+                ),
+
+                laps_completed=clean_int(
+                    first_present(
+                        row,
+                        "Laps",
+                    )
+                ),
+
                 total_time_us=total_time_us,
+
                 gap_to_winner_us=gap,
-                fastest_lap_number=fastest_lap_number,
-                fastest_lap_time=fastest_lap_time,
-                q1_time_us=td_to_us(first_present(row, "Q1")),
-                q2_time_us=td_to_us(first_present(row, "Q2")),
-                q3_time_us=td_to_us(first_present(row, "Q3")),
+
+                fastest_lap_number=(
+                    fastest_lap_number
+                ),
+
+                fastest_lap_time=(
+                    fastest_lap_time
+                ),
+
+                q1_time_us=td_to_us(
+                    first_present(
+                        row,
+                        "Q1",
+                    )
+                ),
+
+                q2_time_us=td_to_us(
+                    first_present(
+                        row,
+                        "Q2",
+                    )
+                ),
+
+                q3_time_us=td_to_us(
+                    first_present(
+                        row,
+                        "Q3",
+                    )
+                ),
             )
         )
+
         _update_season_entries(
             db,
             year=gp.season_year,
-            round_number=gp.round_number,
+            round_number=(
+                gp.round_number
+            ),
             driver=driver,
             constructor=constructor,
             result_row=row,
-            session_type=session_row.type,
+            session_type=(
+                session_row.type
+            ),
         )
 
-        if session_row.type == SessionType.R and finishing_position == 1:
-            gp.winning_driver_id = driver.id
-            gp.winning_constructor_id = constructor.id
+        if (
+            session_row.type
+            == SessionType.R
+            and finishing_position == 1
+        ):
+            gp.winning_driver_id = (
+                driver.id
+            )
+
+            gp.winning_constructor_id = (
+                constructor.id
+            )
+
             gp.status = "completed"
 
     return entries_by_number
