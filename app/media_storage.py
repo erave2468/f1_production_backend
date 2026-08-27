@@ -3,14 +3,26 @@ from __future__ import annotations
 from pathlib import Path
 
 import boto3
+from botocore.config import Config
 
 from app.config import settings
 
 
 def get_s3_client():
+    region = settings.media_s3_region
+
     return boto3.client(
         "s3",
-        region_name=settings.media_s3_region,
+        region_name=region,
+        endpoint_url=(
+            f"https://s3.{region}.amazonaws.com"
+        ),
+        config=Config(
+            signature_version="s3v4",
+            s3={
+                "addressing_style": "virtual",
+            },
+        ),
     )
 
 
