@@ -38,7 +38,9 @@ def upload_file(
             f"Media file not found: {path}"
         )
 
-    extra_args = {}
+    extra_args = {
+        "CacheControl": ("private, max-age=86400"),
+    }
 
     if content_type:
         extra_args["ContentType"] = content_type
@@ -55,25 +57,6 @@ def upload_file(
     return storage_key
 
 
-def object_exists(storage_key: str) -> bool:
-    s3 = get_s3_client()
-
-    try:
-        s3.head_object(
-            Bucket=settings.media_s3_bucket,
-            Key=storage_key,
-        )
-        return True
-
-    except s3.exceptions.ClientError as exc:
-        error_code = exc.response.get(
-            "Error", {}
-        ).get("Code")
-
-        if error_code in {"404", "NoSuchKey"}:
-            return False
-
-        raise
 
 
 def generate_download_url(

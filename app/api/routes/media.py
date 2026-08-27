@@ -12,7 +12,6 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.media_storage import (
     generate_download_url,
-    object_exists,
 )
 from app.models import MediaAsset
 
@@ -47,14 +46,6 @@ def get_media(
             detail="Media asset not found",
         )
 
-    if not object_exists(
-        asset.storage_key
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Media file not found in storage",
-        )
-
     url = generate_download_url(
         asset.storage_key,
         expires_in=300,
@@ -63,4 +54,9 @@ def get_media(
     return RedirectResponse(
         url=url,
         status_code=307,
+        headers={
+            "Cache-Control": (
+                "private, max-age=240"
+            ),
+        },
     )
