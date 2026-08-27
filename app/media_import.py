@@ -11,6 +11,7 @@ from sqlalchemy import select
 from app.db import SessionLocal
 from app.media_storage import upload_file
 from app.models import (
+    CircuitLayout,
     Constructor,
     Country,
     Driver,
@@ -62,6 +63,11 @@ def build_storage_key(
 
         return (
             f"constructors/{season}/"
+            f"{key.lower()}{suffix}"
+        )
+    if asset_type == "circuit":
+        return (
+            f"circuits/"
             f"{key.lower()}{suffix}"
         )
     raise ValueError(
@@ -507,6 +513,129 @@ def import_constructor(
 
     return True
 
+def import_circuit(
+    db,
+    *,
+    manifest_path: Path,
+    row: dict[str, str],
+    dry_run: bool,
+) -> bool:
+    layout_ref = (
+        row["key"]
+        .strip()
+        .lower()
+    )
+
+    # layout_ref 기준으로
+    # 정확한 CircuitLayout 검색
+    layout = db.scalar(
+        select(CircuitLayout)
+        .where(
+            CircuitLayout.layout_ref
+            == layout_ref
+        )
+    )
+
+    if layout is None:
+        print(
+            f"ERROR circuit "
+            f"{layout_ref}: "
+            "circuit layout not found in DB"
+        )
+        return False
+
+    file_path = resolve_file(
+        manifest_path,
+        row["file"].strip(),
+    )
+
+    if not file_path.is_file():
+        print(
+            f"ERROR circuit "
+            f"{layout_ref}: "
+            f"file not found: {file_path}"
+        )
+        return False
+
+    storage_key = build_storage_key(
+        "circuit",
+        layout_ref,
+        file_path,
+    )
+
+    mime_type, _ = mimetypes.guess_type(
+        file_path.name
+    )
+
+    print(
+        f"OK circuit "
+        f"{layout_ref}"
+        f" -> {layout.layout_name}"
+        f" -> {storage_key}"
+    )
+
+    if dry_run:
+        return True
+
+    asset = db.scalar(
+        select(MediaAsset)
+        .where(
+            MediaAsset.storage_key
+            == storage_key
+        )
+    )
+
+    # S3 업로드
+    upload_file(
+        file_path,
+        storage_key,
+        mime_type,
+    )
+
+    if asset is None:
+        asset = MediaAsset(
+            asset_type="CIRCUIT_MAP",
+            storage_key=storage_key,
+            public_url=None,
+            mime_type=mime_type,
+            alt_text=(
+                (row.get("alt_text") or "").strip()
+                or (
+                    f"{layout.layout_name} "
+                    "layout"
+                )
+            ),
+            created_at=datetime.now(
+                UTC
+            ).replace(
+                tzinfo=None
+            ),
+        )
+
+        db.add(asset)
+        db.flush()
+
+    else:
+        asset.mime_type = mime_type
+
+        if row.get("alt_text"):
+            asset.alt_text = (
+                row["alt_text"]
+                .strip()
+            )
+
+    # 핵심 연결
+    layout.map_image_id = asset.id
+
+    db.commit()
+
+    print(
+        f"   media_asset_id={asset.id}, "
+        f"map_image_id={layout.map_image_id}"
+    )
+
+    return True
+
 def import_manifest(
     manifest_path: Path,
     dry_run: bool,
@@ -571,6 +700,13 @@ def import_manifest(
                         )
                     elif asset_type == "constructor":
                         ok = import_constructor(
+                            db,
+                            manifest_path=manifest_path,
+                            row=row,
+                            dry_run=dry_run,
+                        )
+                    elif asset_type == "circuit":
+                        ok = import_circuit(
                             db,
                             manifest_path=manifest_path,
                             row=row,
