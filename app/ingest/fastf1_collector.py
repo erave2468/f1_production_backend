@@ -127,6 +127,13 @@ def _ensure_driver_from_row(
     row: Any,
 ) -> Driver:
     ref = clean_str(first_present(row,"DriverId","driverId","driver_ref",))
+    if ref and ref.lower() in {
+        "nan",
+        "none",
+        "nat",
+        "<na>",
+    }:
+        ref = None
     full_name = clean_str(first_present(row,"FullName","fullName",))
     given = clean_str(first_present(row,"givenName","FirstName",))
     family = clean_str(first_present(row,"familyName","LastName",))
