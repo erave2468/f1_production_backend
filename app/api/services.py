@@ -28,6 +28,8 @@ from app.api.schemas import (
     TireOverviewItem,
     TireStintResponse,
     WeatherItem,
+    SessionEventItem,
+    SessionEventResponse,
 )
 from app.models import (
     Circuit,
@@ -52,6 +54,7 @@ from app.models import (
     SessionType,
     TyreStint,
     WeatherSample,
+    RaceControlEvent,
 )
 
 
@@ -757,4 +760,135 @@ def get_circuit(db: Session, circuit_id: int) -> CircuitResponse:
         circuit_corners=layout.corners if layout else None,
         circuit_opening_year=circuit.opening_year,
         record=record_items,
+    )
+
+def _normalize_session_event_type(
+    event: RaceControlEvent,
+) -> str:
+    values = [
+        event.category,
+        event.event_type,
+        event.flag,
+        event.status,
+        event.message,
+    ]
+
+    text = " ".join(
+        str(value)
+        for value in values
+        if value
+    ).upper()
+
+    # VSC를 SAFETY_CAR보다 먼저 검사해야 함
+    if (
+        "VIRTUAL SAFETY CAR" in text
+        or "VSC" in text
+    ):
+        return "VSC"
+
+    if "SAFETY CAR" in text:
+        return "SAFETY_CAR"
+
+    if (
+        event.flag
+        and event.flag.upper() == "RED"
+    ) or "RED FLAG" in text:
+        return "RED_FLAG"
+
+    if (
+        event.flag
+        and event.flag.upper() == "YELLOW"
+    ) or "YELLOW FLAG" in text:
+        return "YELLOW_FLAG"
+
+    if (
+        event.flag
+        and event.flag.upper() == "GREEN"
+    ) or "GREEN FLAG" in text:
+        return "GREEN_FLAG"
+
+    if (
+        event.flag
+        and event.flag.upper() == "BLUE"
+    ) or "BLUE FLAG" in text:
+        return "BLUE_FLAG"
+
+    if (
+        "CHEQUERED FLAG" in text
+        or "CHECKERED FLAG" in text
+    ):
+        return "CHEQUERED_FLAG"
+
+    # 그 외 FastF1 race control message
+    return "RACE_CONTROL"
+
+def _utc_iso(
+    value: datetime | None,
+) -> str | None:
+    if value is None:
+        return None
+
+    return (
+        value
+        .replace(tzinfo=UTC)
+        .isoformat()
+        .replace("+00:00", "Z")
+    )
+
+def get_session_events(
+    db: Session,
+    grand_prix_id: int,
+    session_type: SessionType,
+) -> SessionEventResponse:
+    gp = _get_gp(
+        db,
+        grand_prix_id,
+    )
+
+    session_row = _get_session(
+        db,
+        gp.id,
+        session_type,
+    )
+
+    events = db.scalars(
+        select(RaceControlEvent)
+        .where(
+            RaceControlEvent.session_id
+            == session_row.id
+        )
+        .order_by(
+            RaceControlEvent.session_time_us,
+            RaceControlEvent.id,
+        )
+    ).all()
+
+    return SessionEventResponse(
+        session_code=session_type,
+        events=[
+            SessionEventItem(
+                event_id=event.id,
+                lap=event.lap_number,
+
+                event_time=_utc_iso(
+                    event.event_time
+                ),
+
+                session_time=_duration(
+                    event.session_time_us
+                ),
+
+                event_type=(
+                    _normalize_session_event_type(
+                        event
+                    )
+                ),
+
+                category=event.category,
+                flag=event.flag,
+                status=event.status,
+                message=event.message,
+            )
+            for event in events
+        ],
     )

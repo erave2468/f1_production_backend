@@ -186,3 +186,23 @@ class CircuitResponse(BaseModel):
     circuit_corners: int | None = None
     circuit_opening_year: int | None = None
     record: list[CircuitRecordItem]
+
+class SessionEventItem(BaseModel):
+    event_id: int
+    lap: int | None = None
+
+    event_time: str | None = None
+
+    session_time: str | None = None
+
+    event_type: str
+
+    category: str | None = None
+    flag: str | None = None
+    status: str | None = None
+    message: str
+
+
+class SessionEventResponse(BaseModel):
+    session_code: SessionType
+    events: list[SessionEventItem]

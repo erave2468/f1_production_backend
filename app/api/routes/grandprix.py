@@ -12,6 +12,7 @@ from app.api.schemas import (
     GrandPrixOverviewResponse,
     GrandPrixResponse,
     GrandPrixResultResponse,
+    SessionEventResponse,
 )
 from app.db import get_db
 from app.models import SessionType
@@ -85,3 +86,10 @@ def grand_prix_detail(
     return GrandPrixDetailResponse(
         driver=services.get_grand_prix_detail(db, grand_prix_id, session)
     )
+@router.get("/{grand_prix_id}/events",response_model=SessionEventResponse,)
+def grand_prix_events(
+    grand_prix_id: int,
+    db: Db,
+    session: Annotated[SessionType,Query(description="FP1, FP2, FP3, Q, SQ, S, R"),] = SessionType.R,
+) -> SessionEventResponse:
+    return services.get_session_events(db,grand_prix_id,session,)
