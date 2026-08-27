@@ -54,6 +54,33 @@ from app.country_data import (
 )
 log = logging.getLogger(__name__)
 
+def _source_str(
+    value: Any,
+    *,
+    max_len: int | None = None,
+) -> str | None:
+    if is_missing(value):
+        return None
+
+    value = clean_str(
+        value,
+        max_len=max_len,
+    )
+
+    if not value:
+        return None
+
+    if value.strip().lower() in {
+        "none",
+        "nan",
+        "nat",
+        "<na>",
+        "null",
+    }:
+        return None
+
+    return value
+
 SESSION_NAME_TO_TYPE: dict[str, SessionType] = {
     "practice 1": SessionType.FP1,
     "fp1": SessionType.FP1,
@@ -126,37 +153,41 @@ def _ensure_driver_from_row(
     db: Session,
     row: Any,
 ) -> Driver:
-    ref = clean_str(first_present(row,"DriverId","driverId","driver_ref",))
-    if ref and ref.lower() in {
-        "nan",
-        "none",
-        "nat",
-        "<na>",
-    }:
-        ref = None
-    full_name = clean_str(first_present(row,"FullName","fullName",))
-    given = clean_str(first_present(row,"givenName","FirstName",))
-    family = clean_str(first_present(row,"familyName","LastName",))
-    if not full_name:
-        full_name = (
-            " ".join(
-                x
-                for x in (given, family)
-                if x
-            )
-            or clean_str(
-                first_present(row,"BroadcastName","Driver",)
-            )
-        )
-
-    abbreviation = clean_str(first_present(row,"Abbreviation","driverCode","code",),max_len=3,)
+    ref = _source_str(first_present(row,"DriverId","driverId","driver_ref",))
+    full_name = _source_str(first_present(row,"FullName","fullName",))
+    given = _source_str(first_present(row,"givenName","FirstName",))
+    family = _source_str(first_present(row,"familyName","LastName",))
+    abbreviation = _source_str(first_present(row,"Abbreviation","driverCode","code",),max_len=3,)
 
     if abbreviation:
         abbreviation = abbreviation.upper()
 
     number = clean_int(first_present(row,"DriverNumber","permanentNumber","driverNumber",),positive_only=True,)
-    nationality = clean_str(first_present(row,"driverNationality","nationality",))
+    nationality = _source_str(first_present(row,"driverNationality","nationality",))
     date_of_birth = clean_date(first_present(row,"dateOfBirth","DateOfBirth",))
+
+    if not full_name:
+        name_parts = [
+            part
+            for part in (
+                given,
+                family,
+            )
+            if part
+        ]
+
+        if name_parts:
+            full_name = " ".join(
+                name_parts
+            )
+        else:
+            full_name = _source_str(
+                first_present(
+                    row,
+                    "BroadcastName",
+                    "Driver",
+                )
+            )
 
     driver = None
 
@@ -263,21 +294,41 @@ def _ensure_driver_from_row(
         return driver
 
     if not ref:
-        ref = slugify(
-            full_name
-            or abbreviation
-            or number,
-            f"driver_{number or 'unknown'}",
-        )
+        if full_name:
+            ref = slugify(
+                full_name,
+                f"driver_{number or 'unknown'}",
+            )
+
+        elif abbreviation:
+            ref = (
+                f"driver_{abbreviation.lower()}"
+            )
+
+        elif number:
+            ref = f"driver_{number}"
+
+        else:
+            raise RuntimeError(
+                "Cannot identify driver: "
+                "no ref, abbreviation, "
+                "name or number"
+            )
 
     driver = Driver(
         driver_ref=ref,
         permanent_number=number,
         abbreviation=abbreviation,
-        full_name=full_name or ref,
+        full_name=(
+            full_name
+            or abbreviation
+            or ref
+        ),
         nationality=nationality,
         nationality_code=(
-            country_code_from_text(nationality)
+            country_code_from_text(
+                nationality
+            )
             if nationality
             else None
         ),
