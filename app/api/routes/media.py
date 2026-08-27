@@ -30,7 +30,7 @@ Db = Annotated[
 
 @router.get(
     "/{image_id}",
-    include_in_schema=False,
+    include_in_schema=True,
 )
 def get_media(
     image_id: int,
