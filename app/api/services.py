@@ -536,11 +536,59 @@ def get_grand_prix_result(
 def get_grand_prix_history(db: Session, grand_prix_id: int, session_type: SessionType) -> GrandPrixHistoryResponse:
     gp = _get_gp(db, grand_prix_id)
     session_row = _get_session(db, gp.id, session_type)
-    periods = db.scalars(
-        select(RacePeriod).where(RacePeriod.session_id == session_row.id).order_by(RacePeriod.start_lap, RacePeriod.start_time_us)
-    ).all()
-    flags = [HistoryFlag(flag_type=p.period_type, startlap=p.start_lap, endlap=p.end_lap) for p in periods]
+    history_flag_types = {
+        "YELLOW_FLAG",
+        "RED_FLAG",
+        "SAFETY_CAR",
+        "VSC",
+    }
 
+    periods = db.scalars(
+        select(RacePeriod)
+        .where(
+            RacePeriod.session_id
+            == session_row.id,
+            RacePeriod.period_type.in_(
+                history_flag_types
+            ),
+        )
+        .order_by(
+            RacePeriod.start_lap,
+            RacePeriod.start_time_us,
+        )
+    ).all()
+
+    flags: list[HistoryFlag] = []
+
+    seen_flags: set[
+        tuple[
+            str,
+            int | None,
+            int | None,
+        ]
+    ] = set()
+
+    for period in periods:
+        key = (
+            period.period_type,
+            period.start_lap,
+            period.end_lap,
+        )
+
+        # 같은 종류 + 같은 lap 구간은
+        # history에서는 한 번만 반환
+        if key in seen_flags:
+            continue
+
+        seen_flags.add(key)
+
+        flags.append(
+            HistoryFlag(
+                flag_type=period.period_type,
+                startlap=period.start_lap,
+                endlap=period.end_lap,
+            )
+        )
     rows = db.execute(
         select(SessionEntry, Driver, Constructor)
         .join(Driver, Driver.id == SessionEntry.driver_id)
