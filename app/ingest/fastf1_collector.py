@@ -1015,43 +1015,240 @@ def _ingest_results_and_entries(
 
     return entries_by_number
 
-
-def _ingest_laps(db: Session, ff_session: Any, entries: dict[str, SessionEntry]) -> None:
+def _ingest_laps(
+    db: Session,
+    ff_session: Any,
+    entries: dict[str, SessionEntry],
+) -> None:
     laps = ff_session.laps
+
     if laps is None or laps.empty:
         return
+
+    # ─────────────────────────────
+    # 각 lap에서 가장 먼저
+    # 해당 lap을 완료한 시각 계산
+    # ─────────────────────────────
+
+    leader_time_by_lap: dict[
+        int,
+        int,
+    ] = {}
+
     for _, row in laps.iterrows():
-        number = clean_str(first_present(row, "DriverNumber"))
-        entry = entries.get(str(number)) if number else None
-        lap_no = clean_int(first_present(row, "LapNumber"), positive_only=True)
-        if entry is None or lap_no is None:
-            continue
-        db.add(
-            Lap(
-                session_entry_id=entry.id,
-                lap_number=lap_no,
-                position=clean_int(first_present(row, "Position"), positive_only=True),
-                lap_time_us=td_to_us(first_present(row, "LapTime")),
-                sector1_time_us=td_to_us(first_present(row, "Sector1Time")),
-                sector2_time_us=td_to_us(first_present(row, "Sector2Time")),
-                sector3_time_us=td_to_us(first_present(row, "Sector3Time")),
-                # Standard FastF1 Laps has no official per-lap gap/interval columns.
-                gap_to_leader_us=None,
-                interval_to_ahead_us=None,
-                compound=clean_str(first_present(row, "Compound"), max_len=24),
-                tyre_life_laps=clean_int(first_present(row, "TyreLife")),
-                stint_number=clean_int(first_present(row, "Stint"), positive_only=True),
-                pit_in_time_us=td_to_us(first_present(row, "PitInTime")),
-                pit_out_time_us=td_to_us(first_present(row, "PitOutTime")),
-                track_status=clean_str(first_present(row, "TrackStatus"), max_len=32),
-                speed_i1_kph=clean_decimal(first_present(row, "SpeedI1")),
-                speed_i2_kph=clean_decimal(first_present(row, "SpeedI2")),
-                speed_fl_kph=clean_decimal(first_present(row, "SpeedFL")),
-                speed_st_kph=clean_decimal(first_present(row, "SpeedST")),
+        lap_no = clean_int(
+            first_present(
+                row,
+                "LapNumber",
+            ),
+            positive_only=True,
+        )
+
+        lap_end_time_us = td_to_us(
+            first_present(
+                row,
+                "Time",
             )
         )
 
+        if (
+            lap_no is None
+            or lap_end_time_us is None
+        ):
+            continue
 
+        current = leader_time_by_lap.get(
+            lap_no
+        )
+
+        if (
+            current is None
+            or lap_end_time_us < current
+        ):
+            leader_time_by_lap[
+                lap_no
+            ] = lap_end_time_us
+
+    # ─────────────────────────────
+    # 실제 Lap 저장
+    # ─────────────────────────────
+
+    for _, row in laps.iterrows():
+        number = clean_str(
+            first_present(
+                row,
+                "DriverNumber",
+            )
+        )
+
+        entry = (
+            entries.get(str(number))
+            if number
+            else None
+        )
+
+        lap_no = clean_int(
+            first_present(
+                row,
+                "LapNumber",
+            ),
+            positive_only=True,
+        )
+
+        if (
+            entry is None
+            or lap_no is None
+        ):
+            continue
+
+        lap_end_time_us = td_to_us(
+            first_present(
+                row,
+                "Time",
+            )
+        )
+
+        leader_time_us = (
+            leader_time_by_lap.get(
+                lap_no
+            )
+        )
+
+        gap_to_leader_us = None
+
+        if (
+            lap_end_time_us is not None
+            and leader_time_us is not None
+        ):
+            gap_to_leader_us = max(
+                0,
+                lap_end_time_us
+                - leader_time_us,
+            )
+
+        db.add(
+            Lap(
+                session_entry_id=entry.id,
+
+                lap_number=lap_no,
+
+                position=clean_int(
+                    first_present(
+                        row,
+                        "Position",
+                    ),
+                    positive_only=True,
+                ),
+
+                lap_time_us=td_to_us(
+                    first_present(
+                        row,
+                        "LapTime",
+                    )
+                ),
+
+                sector1_time_us=td_to_us(
+                    first_present(
+                        row,
+                        "Sector1Time",
+                    )
+                ),
+
+                sector2_time_us=td_to_us(
+                    first_present(
+                        row,
+                        "Sector2Time",
+                    )
+                ),
+
+                sector3_time_us=td_to_us(
+                    first_present(
+                        row,
+                        "Sector3Time",
+                    )
+                ),
+
+                gap_to_leader_us=(
+                    gap_to_leader_us
+                ),
+
+                interval_to_ahead_us=None,
+
+                compound=clean_str(
+                    first_present(
+                        row,
+                        "Compound",
+                    ),
+                    max_len=24,
+                ),
+
+                tyre_life_laps=clean_int(
+                    first_present(
+                        row,
+                        "TyreLife",
+                    )
+                ),
+
+                stint_number=clean_int(
+                    first_present(
+                        row,
+                        "Stint",
+                    ),
+                    positive_only=True,
+                ),
+
+                pit_in_time_us=td_to_us(
+                    first_present(
+                        row,
+                        "PitInTime",
+                    )
+                ),
+
+                pit_out_time_us=td_to_us(
+                    first_present(
+                        row,
+                        "PitOutTime",
+                    )
+                ),
+
+                track_status=clean_str(
+                    first_present(
+                        row,
+                        "TrackStatus",
+                    ),
+                    max_len=32,
+                ),
+
+                speed_i1_kph=clean_decimal(
+                    first_present(
+                        row,
+                        "SpeedI1",
+                    )
+                ),
+
+                speed_i2_kph=clean_decimal(
+                    first_present(
+                        row,
+                        "SpeedI2",
+                    )
+                ),
+
+                speed_fl_kph=clean_decimal(
+                    first_present(
+                        row,
+                        "SpeedFL",
+                    )
+                ),
+
+                speed_st_kph=clean_decimal(
+                    first_present(
+                        row,
+                        "SpeedST",
+                    )
+                ),
+            )
+        )
+        
 def _ingest_stints(db: Session, ff_session: Any, entries: dict[str, SessionEntry]) -> None:
     laps = ff_session.laps
     if laps is None or laps.empty or "Stint" not in laps.columns:
