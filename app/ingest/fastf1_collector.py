@@ -869,9 +869,12 @@ def _ingest_results_and_entries(
             )
         )
 
-        classified_position = clean_int(
-            classified_raw,
-            positive_only=True,
+        classified_position = (
+            clean_int(
+                classified_raw,
+                positive_only=True,
+            )
+            or finishing_position
         )
 
         displayed_position = (
