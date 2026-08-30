@@ -165,13 +165,13 @@ class CircuitMedia(Base):
     __table_args__ = (
         UniqueConstraint(
             "circuit_layout_id",
-            "media_asset_id",
-            name="uq_circuit_media_asset",
+            "image_type",
+            "display_order",
+            name="uq_circuit_media_slot",
         ),
         Index(
-            "ix_circuit_media_layout_type",
+            "ix_circuit_media_layout",
             "circuit_layout_id",
-            "image_type",
         ),
     )
 
