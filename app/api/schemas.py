@@ -181,12 +181,30 @@ class CircuitRecordItem(BaseModel):
 class CircuitResponse(BaseModel):
     circuit_korean_name: str | None = None
     circuit_english_name: str
+
+    nation_flag_image_id: int | None = None
+
     circuit_image_id: int | None = None
+
     circuit_one_lap_length: float | None = None
     circuit_corners: int | None = None
     circuit_opening_year: int | None = None
+
     record: list[CircuitRecordItem]
 
+class CircuitGrandPrixItem(BaseModel):
+    grand_prix_id: int
+    season: int
+    round: int
+    name: str
+    winner_driver_id: int | None = None
+    winner_driver_name: str | None = None
+
+
+class CircuitGrandPrixResponse(BaseModel):
+    grand_prix: list[CircuitGrandPrixItem]
+
+    
 class SessionEventItem(BaseModel):
     event_id: int
 

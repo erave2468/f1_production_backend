@@ -30,6 +30,8 @@ from app.api.schemas import (
     WeatherItem,
     SessionEventItem,
     SessionEventResponse,
+    CircuitGrandPrixResponse,
+    CircuitGrandPrixItem,
 )
 from app.models import (
     Circuit,
@@ -805,12 +807,74 @@ def get_circuit(db: Session, circuit_id: int) -> CircuitResponse:
     return CircuitResponse(
         circuit_korean_name=circuit.name_ko,
         circuit_english_name=circuit.name,
+        nation_flag_image_id=(_country_flag_id(db,circuit.country_code,)),
         circuit_image_id=layout.map_image_id if layout else None,
         circuit_one_lap_length=(length_m / 1000 if length_m else None),
         circuit_corners=layout.corners if layout else None,
         circuit_opening_year=circuit.opening_year,
         record=record_items,
     )
+
+def get_circuit_grand_prix(
+    db: Session,
+    circuit_id: int,
+) -> CircuitGrandPrixResponse:
+
+    circuit = db.get(
+        Circuit,
+        circuit_id,
+    )
+
+    if circuit is None:
+        raise _not_found(
+            "Circuit not found"
+        )
+
+    rows = db.execute(
+        select(
+            GrandPrix,
+            Driver,
+        )
+        .outerjoin(
+            Driver,
+            Driver.id
+            == GrandPrix.winning_driver_id,
+        )
+        .where(
+            GrandPrix.circuit_id
+            == circuit_id
+        )
+        .order_by(
+            GrandPrix.season_year.desc(),
+            GrandPrix.round_number.desc(),
+        )
+    ).all()
+
+    return CircuitGrandPrixResponse(
+        grand_prix=[
+            CircuitGrandPrixItem(
+                grand_prix_id=gp.id,
+                season=gp.season_year,
+                round=gp.round_number,
+                name=(
+                    gp.display_name_ko
+                    or gp.display_name
+                ),
+                winner_driver_id=(
+                    driver.id
+                    if driver
+                    else None
+                ),
+                winner_driver_name=(
+                    driver.full_name
+                    if driver
+                    else None
+                ),
+            )
+            for gp, driver in rows
+        ]
+    )
+
 
 def _normalize_session_event_type(
     event: RaceControlEvent,
