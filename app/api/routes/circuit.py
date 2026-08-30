@@ -15,15 +15,6 @@ Db = Annotated[Session, Depends(get_db)]
 def circuit(circuit_id: int, db: Db) -> CircuitResponse:
     return services.get_circuit(db, circuit_id)
 
-@router.get(
-    "/{circuit_id}/grandprix",
-    response_model=CircuitGrandPrixResponse,
-)
-def circuit_grand_prix(
-    circuit_id: int,
-    db: Db,
-) -> CircuitGrandPrixResponse:
-    return services.get_circuit_grand_prix(
-        db,
-        circuit_id,
-    )
+@router.get("/{circuit_id}/grandprix",response_model=CircuitGrandPrixResponse,)
+def circuit_grand_prix(circuit_id: int,db: Db,) -> CircuitGrandPrixResponse:
+    return services.get_circuit_grand_prix(db,circuit_id)

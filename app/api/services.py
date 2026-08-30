@@ -32,6 +32,7 @@ from app.api.schemas import (
     SessionEventResponse,
     CircuitGrandPrixResponse,
     CircuitGrandPrixItem,
+    CircuitImageItem,
 )
 from app.models import (
     Circuit,
@@ -58,7 +59,7 @@ from app.models import (
     WeatherSample,
     RaceControlEvent,
     RacePeriod,
-    
+    CircuitMedia,
 )
 
 
@@ -751,67 +752,249 @@ def get_constructor_championship(db: Session, season: int | None, after_round: i
         ))
     return output
 
+def get_circuit(
+    db: Session,
+    circuit_id: int,
+) -> CircuitResponse:
+    circuit = db.get(
+        Circuit,
+        circuit_id,
+    )
 
-def get_circuit(db: Session, circuit_id: int) -> CircuitResponse:
-    circuit = db.get(Circuit, circuit_id)
     if circuit is None:
-        raise _not_found("Circuit not found")
+        raise _not_found(
+            "Circuit not found"
+        )
+
     layout = db.scalar(
         select(CircuitLayout)
-        .where(CircuitLayout.circuit_id == circuit.id)
-        .order_by(CircuitLayout.is_current.desc(), CircuitLayout.valid_from_year.desc())
+        .where(
+            CircuitLayout.circuit_id
+            == circuit.id
+        )
+        .order_by(
+            CircuitLayout.is_current.desc(),
+            CircuitLayout.valid_from_year.desc(),
+        )
         .limit(1)
     )
 
-    record_items: list[CircuitRecordItem] = []
+    # ──────────────────────────────
+    # Circuit records
+    # ──────────────────────────────
+
+    record_items: list[
+        CircuitRecordItem
+    ] = []
+
     if layout:
         rows = db.execute(
-            select(CircuitRecord, Driver, Constructor)
-            .outerjoin(Driver, Driver.id == CircuitRecord.driver_id)
-            .outerjoin(Constructor, Constructor.id == CircuitRecord.constructor_id)
-            .where(CircuitRecord.circuit_layout_id == layout.id)
-            .order_by(CircuitRecord.record_type)
+            select(
+                CircuitRecord,
+                Driver,
+                Constructor,
+            )
+            .outerjoin(
+                Driver,
+                Driver.id
+                == CircuitRecord.driver_id,
+            )
+            .outerjoin(
+                Constructor,
+                Constructor.id
+                == CircuitRecord.constructor_id,
+            )
+            .where(
+                CircuitRecord.circuit_layout_id
+                == layout.id
+            )
+            .order_by(
+                CircuitRecord.record_type
+            )
         ).all()
-        for record, driver, constructor in rows:
-            public_type = {"RACE_LAP": "LAP", "TRACK_LAP": "TRACK"}.get(record.record_type, record.record_type)
-            record_items.append(CircuitRecordItem(
-                record_type=public_type,
-                driver_id=driver.id if driver else None,
-                driver_name=driver.full_name if driver else None,
-                record_year=record.record_year,
-                driver_team=constructor.name if constructor else None,
-                record_time=_duration(record.lap_time_us),
-            ))
 
-    # LASTWIN is derived, not duplicated in circuit_records.
+        for (
+            record,
+            driver,
+            constructor,
+        ) in rows:
+
+            public_type = {
+                "RACE_LAP": "LAP",
+                "TRACK_LAP": "TRACK",
+            }.get(
+                record.record_type,
+                record.record_type,
+            )
+
+            record_items.append(
+                CircuitRecordItem(
+                    record_type=public_type,
+
+                    driver_id=(
+                        driver.id
+                        if driver
+                        else None
+                    ),
+
+                    driver_name=(
+                        driver.full_name
+                        if driver
+                        else None
+                    ),
+
+                    record_year=(
+                        record.record_year
+                    ),
+
+                    driver_team=(
+                        constructor.name
+                        if constructor
+                        else None
+                    ),
+
+                    record_time=_duration(
+                        record.lap_time_us
+                    ),
+                )
+            )
+
+    # ──────────────────────────────
+    # LASTWIN
+    # ──────────────────────────────
+
     last_win = db.execute(
-        select(GrandPrix, Driver, Constructor)
-        .join(Driver, Driver.id == GrandPrix.winning_driver_id)
-        .outerjoin(Constructor, Constructor.id == GrandPrix.winning_constructor_id)
-        .where(GrandPrix.circuit_id == circuit.id, GrandPrix.winning_driver_id.is_not(None))
-        .order_by(GrandPrix.season_year.desc(), GrandPrix.round_number.desc())
+        select(
+            GrandPrix,
+            Driver,
+            Constructor,
+        )
+        .join(
+            Driver,
+            Driver.id
+            == GrandPrix.winning_driver_id,
+        )
+        .outerjoin(
+            Constructor,
+            Constructor.id
+            == GrandPrix.winning_constructor_id,
+        )
+        .where(
+            GrandPrix.circuit_id
+            == circuit.id,
+            GrandPrix.winning_driver_id
+            .is_not(None),
+        )
+        .order_by(
+            GrandPrix.season_year.desc(),
+            GrandPrix.round_number.desc(),
+        )
         .limit(1)
     ).first()
+
     if last_win:
         gp, driver, constructor = last_win
-        record_items.append(CircuitRecordItem(
-            record_type="LASTWIN",
-            driver_id=driver.id,
-            driver_name=driver.full_name,
-            record_year=gp.season_year,
-            driver_team=constructor.name if constructor else None,
-            record_time=None,
-        ))
 
-    length_m = layout.length_meters if layout and layout.length_meters else circuit.length_meters
+        record_items.append(
+            CircuitRecordItem(
+                record_type="LASTWIN",
+                driver_id=driver.id,
+                driver_name=driver.full_name,
+                record_year=gp.season_year,
+                driver_team=(
+                    constructor.name
+                    if constructor
+                    else None
+                ),
+                record_time=None,
+            )
+        )
+
+    # ──────────────────────────────
+    # Circuit images
+    # ──────────────────────────────
+
+    circuit_images: list[
+        CircuitImageItem
+    ] = []
+
+    if layout:
+        media_rows = db.scalars(
+            select(CircuitMedia)
+            .where(
+                CircuitMedia.circuit_layout_id
+                == layout.id
+            )
+            .order_by(
+                CircuitMedia.display_order,
+                CircuitMedia.id,
+            )
+        ).all()
+
+        for media in media_rows:
+            circuit_images.append(
+                CircuitImageItem(
+                    image_id=media.media_asset_id,
+                    image_type=media.image_type,
+                    display_order=(
+                        media.display_order
+                    ),
+                )
+            )
+
+        # 기존 map_image_id는 있는데
+        # circuit_media에는 없는 경우 호환
+        existing_image_ids = {
+            image.image_id
+            for image in circuit_images
+        }
+
+        if (
+            layout.map_image_id
+            and layout.map_image_id
+            not in existing_image_ids
+        ):
+            circuit_images.insert(
+                0,
+                CircuitImageItem(
+                    image_id=layout.map_image_id,
+                    image_type="MAP",
+                    display_order=0,
+                ),
+            )
+
+    length_m = (
+        layout.length_meters
+        if (
+            layout
+            and layout.length_meters
+        )
+        else circuit.length_meters
+    )
+
     return CircuitResponse(
-        circuit_korean_name=circuit.name_ko,
-        circuit_english_name=circuit.name,
+        circuit_korean_name=(circuit.name_ko),
+        circuit_english_name=(circuit.name),
+
         nation_flag_image_id=(_country_flag_id(db,circuit.country_code,)),
-        circuit_image_id=layout.map_image_id if layout else None,
-        circuit_one_lap_length=(length_m / 1000 if length_m else None),
-        circuit_corners=layout.corners if layout else None,
-        circuit_opening_year=circuit.opening_year,
+        circuit_image_id=(
+            layout.map_image_id
+            if layout
+            else None
+        ),
+        circuit_images=circuit_images,
+        circuit_one_lap_length=(length_m / 1000
+            if length_m
+            else None
+        ),
+        circuit_corners=(
+            layout.corners
+            if layout
+            else None
+        ),
+        circuit_opening_year=(
+            circuit.opening_year
+        ),
         record=record_items,
     )
 
@@ -830,15 +1013,31 @@ def get_circuit_grand_prix(
             "Circuit not found"
         )
 
+    RaceSession = aliased(
+        SessionModel
+    )
+
     rows = db.execute(
         select(
             GrandPrix,
             Driver,
+            RaceSession.scheduled_start,
         )
         .outerjoin(
             Driver,
             Driver.id
             == GrandPrix.winning_driver_id,
+        )
+        .outerjoin(
+            RaceSession,
+            (
+                RaceSession.grand_prix_id
+                == GrandPrix.id
+            )
+            & (
+                RaceSession.type
+                == SessionType.R
+            ),
         )
         .where(
             GrandPrix.circuit_id
@@ -850,31 +1049,63 @@ def get_circuit_grand_prix(
         )
     ).all()
 
-    return CircuitGrandPrixResponse(
-        grand_prix=[
+    items: list[
+        CircuitGrandPrixItem
+    ] = []
+
+    for (
+        gp,
+        driver,
+        race_date,
+    ) in rows:
+
+        items.append(
             CircuitGrandPrixItem(
                 grand_prix_id=gp.id,
-                season=gp.season_year,
-                round=gp.round_number,
+
+                season_year=(
+                    gp.season_year
+                ),
+
+                round=(
+                    gp.round_number
+                ),
+
                 name=(
                     gp.display_name_ko
                     or gp.display_name
                 ),
+
+                date=race_date,
+
                 winner_driver_id=(
                     driver.id
                     if driver
                     else None
                 ),
+
                 winner_driver_name=(
                     driver.full_name
                     if driver
                     else None
                 ),
-            )
-            for gp, driver in rows
-        ]
-    )
 
+                winner_driver_image_id=(
+                    _driver_portrait_id(
+                        db,
+                        gp.season_year,
+                        gp.winning_driver_id,
+                        gp.winning_constructor_id,
+                    )
+                    if driver
+                    else None
+                ),
+            )
+        )
+
+    return CircuitGrandPrixResponse(
+        grand_prix=items
+    )
 
 def _normalize_session_event_type(
     event: RaceControlEvent,

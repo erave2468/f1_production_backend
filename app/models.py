@@ -159,6 +159,56 @@ class CircuitLayout(Base):
     )
     is_current: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
+class CircuitMedia(Base):
+    __tablename__ = "circuit_media"
+
+    __table_args__ = (
+        UniqueConstraint(
+            "circuit_layout_id",
+            "media_asset_id",
+            name="uq_circuit_media_asset",
+        ),
+        Index(
+            "ix_circuit_media_layout_type",
+            "circuit_layout_id",
+            "image_type",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(
+        BigInteger,
+        primary_key=True,
+        autoincrement=True,
+    )
+
+    circuit_layout_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey(
+            "circuit_layouts.id",
+            ondelete="CASCADE",
+        ),
+        nullable=False,
+    )
+
+    media_asset_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey(
+            "media_assets.id",
+            ondelete="CASCADE",
+        ),
+        nullable=False,
+    )
+
+    image_type: Mapped[str] = mapped_column(
+        String(40),
+        nullable=False,
+    )
+
+    display_order: Mapped[int] = mapped_column(
+        SmallInteger,
+        nullable=False,
+        default=0,
+    )
 
 class SeasonDriverEntry(Base):
     __tablename__ = "season_driver_entries"

@@ -1,25 +1,25 @@
-type,key,season,file,alt_text
-country,JP,,../media_source/countries/JP.png,Japan flag
-driver,ALB,2026,../media_source/drivers/2026/ALB.png,Alexander Albon
-driver,ALO,2026,../media_source/drivers/2026/ALO.png,Fernando Alonso
-driver,ANT,2026,../media_source/drivers/2026/ANT.png,Kimi Antonelli
-driver,BEA,2026,../media_source/drivers/2026/BEA.png,Oliver Bearman
-driver,BOR,2026,../media_source/drivers/2026/BOR.png,Gabriel Bortoleto
-driver,COL,2026,../media_source/drivers/2026/COL.png,Franco Colapinto
-driver,VER,2026,../media_source/drivers/2026/VER.png,Max Verstappen
-driver,NOR,2026,../media_source/drivers/2026/NOR.png,Lando Norris
-driver,LEC,2026,../media_source/drivers/2026/LEC.png,Charles Leclerc
-driver,GAS,2026,../media_source/drivers/2026/GAS.png,Pierre Gasly
-driver,HAD,2026,../media_source/drivers/2026/HAD.png,Isack Hadjar
-driver,HAM,2026,../media_source/drivers/2026/HAM.png,Lewis Hamilton
-driver,HUL,2026,../media_source/drivers/2026/HUL.png,Nico Hulkenberg
-driver,LAW,2026,../media_source/drivers/2026/LAW.png,Liam Lawson
-driver,OCO,2026,../media_source/drivers/2026/OCO.png,Esteban Ocon
-driver,PER,2026,../media_source/drivers/2026/PER.png,Sergio Perez
-driver,PIA,2026,../media_source/drivers/2026/PIA.png,Oscar Piastri
-driver,RUS,2026,../media_source/drivers/2026/RUS.png,George Russell
-driver,SAI,2026,../media_source/drivers/2026/SAI.png,Carlos Sainz
-driver,STR,2026,../media_source/drivers/2026/STR.png,Lance Stroll
+type,key,season,file,variant,display_order,alt_text
+country,JP,,../media_source/countries/JP.png,,,Japan flag
+driver,ALB,2026,../media_source/drivers/2026/ALB.png,,,Alexander Albon
+driver,ALO,2026,../media_source/drivers/2026/ALO.png,,,Fernando Alonso
+driver,ANT,2026,../media_source/drivers/2026/ANT.png,,,Kimi Antonelli
+driver,BEA,2026,../media_source/drivers/2026/BEA.png,,,Oliver Bearman
+driver,BOR,2026,../media_source/drivers/2026/BOR.png,,,Gabriel Bortoleto
+driver,COL,2026,../media_source/drivers/2026/COL.png,,,Franco Colapinto
+driver,VER,2026,../media_source/drivers/2026/VER.png,,,Max Verstappen
+driver,NOR,2026,../media_source/drivers/2026/NOR.png,,,Lando Norris
+driver,LEC,2026,../media_source/drivers/2026/LEC.png,,,Charles Leclerc
+driver,GAS,2026,../media_source/drivers/2026/GAS.png,,,Pierre Gasly
+driver,HAD,2026,../media_source/drivers/2026/HAD.png,,,Isack Hadjar
+driver,HAM,2026,../media_source/drivers/2026/HAM.png,,,Lewis Hamilton
+driver,HUL,2026,../media_source/drivers/2026/HUL.png,,,Nico Hulkenberg
+driver,LAW,2026,../media_source/drivers/2026/LAW.png,,,Liam Lawson
+driver,OCO,2026,../media_source/drivers/2026/OCO.png,,,Esteban Ocon
+driver,PER,2026,../media_source/drivers/2026/PER.png,,,Sergio Perez
+driver,PIA,2026,../media_source/drivers/2026/PIA.png,,,Oscar Piastri
+driver,RUS,2026,../media_source/drivers/2026/RUS.png,,,George Russell
+driver,SAI,2026,../media_source/drivers/2026/SAI.png,,,Carlos Sainz
+driver,STR,2026,../media_source/drivers/2026/STR.png,,,Lance Stroll
 constructor,alpine,2026,../media_source/constructors/2026/alpine.png,
 constructor,aston_martin,2026,../media_source/constructors/2026/aston_martin.png,
 constructor,audi,2026,../media_source/constructors/2026/audi.png,
@@ -33,15 +33,15 @@ constructor,red_bull,2026,../media_source/constructors/2026/red_bull.png,
 constructor,williams,2026,../media_source/constructors/2026/williams.png,
 constructor,haas_f1_team,2026,../media_source/constructors/2026/haas_f1_team.png,
 constructor,racing_bulls,2026,../media_source/constructors/2026/racing_bulls.png,
-circuit,albert_park_2026,2026,../media_source/circuits/2026/albert_park_2026.avif,
-circuit,shanghai_2026,2026,../media_source/circuits/2026/shanghai_2026.avif,
-circuit,suzuka_2026,2026,../media_source/circuits/2026/suzuka_2026.avif,
-circuit,miami_2026,2026,../media_source/circuits/2026/miami_2026.avif,
-circuit,villeneuve_2026,2026,../media_source/circuits/2026/villeneuve_2026.avif,
-circuit,monaco_2026,2026,../media_source/circuits/2026/monaco_2026.avif,
-circuit,catalunya_2026,2026,../media_source/circuits/2026/catalunya_2026.avif,
-circuit,red_bull_ring_2026,2026,../media_source/circuits/2026/red_bull_ring_2026.avif,
-circuit,silverstone_2026,2026,../media_source/circuits/2026/silverstone_2026.avif,
-circuit,spa_2026,2026,../media_source/circuits/2026/spa_2026.avif,
-circuit,hungaroring_2026,2026,../media_source/circuits/2026/hungaroring_2026.avif,
-circuit,zandvoort_2026,2026,../media_source/circuits/2026/zandvoort_2026.avif,
+circuit,albert_park_2026,2026,../media_source/circuits/2026/albert_park_2026.avif,MAP,0,
+circuit,shanghai_2026,2026,../media_source/circuits/2026/shanghai_2026.avif,MAP,0,
+circuit,suzuka_2026,2026,../media_source/circuits/2026/suzuka_2026.avif,MAP,0,
+circuit,miami_2026,2026,../media_source/circuits/2026/miami_2026.avif,MAP,0,
+circuit,villeneuve_2026,2026,../media_source/circuits/2026/villeneuve_2026.avif,MAP,0,
+circuit,monaco_2026,2026,../media_source/circuits/2026/monaco_2026.avif,MAP,0,
+circuit,catalunya_2026,2026,../media_source/circuits/2026/catalunya_2026.avif,MAP,0,
+circuit,red_bull_ring_2026,2026,../media_source/circuits/2026/red_bull_ring_2026.avif,MAP,0,
+circuit,silverstone_2026,2026,../media_source/circuits/2026/silverstone_2026.avif,MAP,0,
+circuit,spa_2026,2026,../media_source/circuits/2026/spa_2026.avif,MAP,0,
+circuit,hungaroring_2026,2026,../media_source/circuits/2026/hungaroring_2026.avif,MAP,0,
+circuit,zandvoort_2026,2026,../media_source/circuits/2026/zandvoort_2026.avif,MAP,0,

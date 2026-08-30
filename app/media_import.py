@@ -18,6 +18,7 @@ from app.models import (
     MediaAsset,
     SeasonConstructorEntry,
     SeasonDriverEntry,
+    CircuitMedia,
 )
 
 
@@ -38,6 +39,7 @@ def build_storage_key(
     key: str,
     file_path: Path,
     season: int | None = None,
+    variant: str | None = None,
 ) -> str:
     suffix = file_path.suffix.lower()
 
@@ -66,9 +68,16 @@ def build_storage_key(
             f"{key.lower()}{suffix}"
         )
     if asset_type == "circuit":
+        image_variant = (
+            variant
+            or "map"
+        ).strip().lower()
+
         return (
             f"circuits/"
-            f"{key.lower()}{suffix}"
+            f"{key.lower()}/"
+            f"{image_variant}"
+            f"{suffix}"
         )
     raise ValueError(
         f"Unsupported asset type: {asset_type}"
@@ -525,7 +534,16 @@ def import_circuit(
         .strip()
         .lower()
     )
+    image_type = (
+        (row.get("variant") or "MAP")
+        .strip()
+        .upper()
+    )
 
+    display_order = int(
+        row.get("display_order")
+        or 0
+    )
     # layout_ref 기준으로
     # 정확한 CircuitLayout 검색
     layout = db.scalar(
@@ -561,6 +579,7 @@ def import_circuit(
         "circuit",
         layout_ref,
         file_path,
+        variant=image_type,
     )
 
     mime_type, _ = mimetypes.guess_type(
@@ -594,7 +613,9 @@ def import_circuit(
 
     if asset is None:
         asset = MediaAsset(
-            asset_type="CIRCUIT_MAP",
+            asset_type=(
+                f"CIRCUIT_{image_type}"
+            ),
             storage_key=storage_key,
             public_url=None,
             mime_type=mime_type,
@@ -625,7 +646,37 @@ def import_circuit(
             )
 
     # 핵심 연결
-    layout.map_image_id = asset.id
+    link = db.scalar(
+        select(CircuitMedia)
+        .where(
+            CircuitMedia.circuit_layout_id
+            == layout.id,
+
+            CircuitMedia.media_asset_id
+            == asset.id,
+        )
+    )
+
+    if link is None:
+        link = CircuitMedia(
+            circuit_layout_id=layout.id,
+            media_asset_id=asset.id,
+            image_type=image_type,
+            display_order=display_order,
+        )
+
+        db.add(link)
+
+    else:
+        link.image_type = image_type
+        link.display_order = display_order
+
+
+    # 대표 MAP인 경우에만
+    # 기존 필드도 업데이트
+    if image_type == "MAP":
+        layout.map_image_id = asset.id
+
 
     db.commit()
 

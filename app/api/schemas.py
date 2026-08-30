@@ -177,6 +177,11 @@ class CircuitRecordItem(BaseModel):
     driver_team: str | None = None
     record_time: str | None = None
 
+class CircuitImageItem(BaseModel):
+    image_id: int
+    image_type: str
+    display_order: int = 0
+
 
 class CircuitResponse(BaseModel):
     circuit_korean_name: str | None = None
@@ -184,7 +189,11 @@ class CircuitResponse(BaseModel):
 
     nation_flag_image_id: int | None = None
 
+    # 기존 프론트 호환용 대표 이미지
     circuit_image_id: int | None = None
+
+    # 신규 다중 이미지
+    circuit_images: list[CircuitImageItem] = []
 
     circuit_one_lap_length: float | None = None
     circuit_corners: int | None = None
@@ -194,17 +203,20 @@ class CircuitResponse(BaseModel):
 
 class CircuitGrandPrixItem(BaseModel):
     grand_prix_id: int
-    season: int
+    season_year: int
     round: int
     name: str
+    date: datetime | None = None
+
     winner_driver_id: int | None = None
     winner_driver_name: str | None = None
+    winner_driver_image_id: int | None = None
 
 
 class CircuitGrandPrixResponse(BaseModel):
     grand_prix: list[CircuitGrandPrixItem]
 
-    
+
 class SessionEventItem(BaseModel):
     event_id: int
 
