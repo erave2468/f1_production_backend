@@ -1,3 +1,3 @@
 layout_ref,record_type,driver_ref,constructor_ref,year,lap_time,source,source_url
 suzuka_2026,RACE_LAP,antonelli,mercedes,2025,1:30.965,FIA
-suzuka_2026,TRACK_LAP,verstappen,red_bull,2025,1:26.983,FIA
+suzuka_2026,TRACK_LAP,max_verstappen,red_bull,2025,1:26.983,FIA
