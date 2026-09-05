@@ -650,14 +650,42 @@ def _non_finish_code(status_text: str | None) -> str | None:
 def get_grand_prix_detail(db: Session, grand_prix_id: int, session_type: SessionType) -> list[GrandPrixDetailDriver]:
     gp = _get_gp(db, grand_prix_id)
     session_row = _get_session(db, gp.id, session_type)
-    rows = db.execute(
+    stmt = (
         select(SessionEntry, SessionResult, Driver, Constructor)
-        .join(SessionResult, SessionResult.session_entry_id == SessionEntry.id)
-        .join(Driver, Driver.id == SessionEntry.driver_id)
-        .join(Constructor, Constructor.id == SessionEntry.constructor_id)
-        .where(SessionEntry.session_id == session_row.id)
-        .order_by(SessionResult.finishing_position, SessionEntry.id)
-    ).all()
+        .join(
+            SessionResult,
+            SessionResult.session_entry_id == SessionEntry.id,
+        )
+        .join(
+            Driver,
+            Driver.id == SessionEntry.driver_id,
+        )
+        .join(
+            Constructor,
+            Constructor.id == SessionEntry.constructor_id,
+        )
+        .where(
+            SessionEntry.session_id == session_row.id,
+        )
+    )
+
+    if session_type in {
+        SessionType.FP1,
+        SessionType.FP2,
+        SessionType.FP3,
+    }:
+        stmt = stmt.order_by(
+            SessionResult.fastest_lap_time.is_(None),
+            SessionResult.fastest_lap_time.asc(),
+            SessionEntry.id,
+        )
+    else:
+        stmt = stmt.order_by(
+            SessionResult.finishing_position,
+            SessionEntry.id,
+        )
+
+    rows = db.execute(stmt).all()
 
     race_or_sprint = session_type in {SessionType.R, SessionType.S}
     leader_laps = max(
@@ -666,7 +694,7 @@ def get_grand_prix_detail(db: Session, grand_prix_id: int, session_type: Session
     ) if race_or_sprint else None
 
     result_list: list[GrandPrixDetailDriver] = []
-    for entry, result, driver, constructor in rows:
+    for index, (entry, result, driver, constructor) in enumerate(rows,start=1,):
         logo_id, color = _team_meta(db, gp.season_year, constructor.id)
         stints = db.scalars(select(TyreStint).where(TyreStint.session_entry_id == entry.id).order_by(TyreStint.stint_number)).all()
         s1, s2, s3, speedtrap = db.execute(
@@ -688,7 +716,15 @@ def get_grand_prix_detail(db: Session, grand_prix_id: int, session_type: Session
                 if race_or_sprint
                 else _duration(result.total_time_us)
             ),
-            position=result.classified_position,
+            position=(
+                index
+                if session_type in {
+                    SessionType.FP1,
+                    SessionType.FP2,
+                    SessionType.FP3,
+                }
+                else result.classified_position
+            ),
             fastestlap=_duration(result.fastest_lap_time),
             speedtrap=_float(speedtrap),
             is_completed=_is_completed_status(result.status),
