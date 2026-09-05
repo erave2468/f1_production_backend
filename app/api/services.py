@@ -914,9 +914,7 @@ def get_circuit(
     # Circuit images
     # ──────────────────────────────
 
-    circuit_images: list[
-        CircuitImageItem
-    ] = []
+    circuit_images: list[CircuitImageItem] = []
 
     if layout:
         media_rows = db.scalars(
@@ -931,16 +929,14 @@ def get_circuit(
             )
         ).all()
 
-        for media in media_rows:
-            circuit_images.append(
-                CircuitImageItem(
-                    image_id=media.media_asset_id,
-                    image_type=media.image_type,
-                    display_order=(
-                        media.display_order
-                    ),
-                )
+        circuit_images = [
+            CircuitImageItem(
+                image_id=row.media_asset_id,
+                image_type=row.image_type,
+                display_order=row.display_order,
             )
+            for row in media_rows
+        ]
 
         # 기존 map_image_id는 있는데
         # circuit_media에는 없는 경우 호환
@@ -950,7 +946,7 @@ def get_circuit(
         }
 
         if (
-            layout.map_image_id
+            layout.map_image_id is not None
             and layout.map_image_id
             not in existing_image_ids
         ):
@@ -973,28 +969,36 @@ def get_circuit(
     )
 
     return CircuitResponse(
-        circuit_korean_name=(circuit.name_ko),
-        circuit_english_name=(circuit.name),
+        circuit_korean_name=circuit.name_ko,
+        circuit_english_name=circuit.name,
 
-        nation_flag_image_id=(_country_flag_id(db,circuit.country_code,)),
+        nation_flag_image_id=_country_flag_id(
+            db,
+            circuit.country_code,
+        ),
+
         circuit_image_id=(
             layout.map_image_id
             if layout
             else None
         ),
+
         circuit_images=circuit_images,
-        circuit_one_lap_length=(length_m / 1000
+
+        circuit_one_lap_length=(
+            length_m / 1000
             if length_m
             else None
         ),
+
         circuit_corners=(
             layout.corners
             if layout
             else None
         ),
-        circuit_opening_year=(
-            circuit.opening_year
-        ),
+
+        circuit_opening_year=circuit.opening_year,
+
         record=record_items,
     )
 

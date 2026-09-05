@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.models import SessionType
 
@@ -180,7 +180,7 @@ class CircuitRecordItem(BaseModel):
 class CircuitImageItem(BaseModel):
     image_id: int
     image_type: str
-    display_order: int = 0
+    display_order: int
 
 
 class CircuitResponse(BaseModel):
@@ -189,11 +189,13 @@ class CircuitResponse(BaseModel):
 
     nation_flag_image_id: int | None = None
 
-    # 기존 프론트 호환용 대표 이미지
+    # 기존 프론트 호환용
     circuit_image_id: int | None = None
 
-    # 신규 다중 이미지
-    circuit_images: list[CircuitImageItem] = []
+    # 신규
+    circuit_images: list[CircuitImageItem] = Field(
+        default_factory=list
+    )
 
     circuit_one_lap_length: float | None = None
     circuit_corners: int | None = None
